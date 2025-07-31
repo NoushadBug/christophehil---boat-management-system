@@ -7,19 +7,49 @@
 </head>
 
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 class="text-xl font-bold mb-4">Login</h2>
-        <form id="login-form">
-            <div class="mb-4">
-                <label class="block mb-1 font-semibold">Email</label>
-                <input type="email" class="w-full border px-3 py-2 rounded" required>
+    <div x-show="!$store.appStore.isULoggedIn" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <div class="text-center mb-6">
+                <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" alt="Boat Logo"
+                    class="w-16 h-16 mx-auto mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Boat Management System</h2>
+                <p class="text-gray-600 mt-2">Sign in to your account</p>
             </div>
-            <div class="mb-4">
-                <label class="block mb-1 font-semibold">Password</label>
-                <input type="password" class="w-full border px-3 py-2 rounded" required>
+
+            <form @submit.prevent="login()" x-data="{ email: '', password: '' }">
+                <div class="mb-4">
+                    <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
+                    <div class="relative">
+                        <i class='bx bx-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+                        <input type="email" x-model="email"
+                            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter your email" required>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block mb-2 text-sm font-medium text-gray-700">Password</label>
+                    <div class="relative">
+                        <i class='bx bx-lock-alt absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+                        <input type="password" x-model="password"
+                            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter your password" required>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 flex items-center justify-center">
+                    <i class='bx bx-log-in mr-2'></i>
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">
+                    Demo Credentials: admin@boatmanagement.com / password123
+                </p>
             </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Login</button>
-        </form>
+        </div>
     </div>
 </body>
 
