@@ -1,4 +1,6 @@
-<div x-data="{ show: false, message: '', type: 'success' }" x-show="show" x-transition class="fixed top-5 right-5 z-50">
+<div x-data="{ show: false, message: '', type: 'success' }" x-show="show" x-transition
+    @show-toast.window="show = true; message = $event.detail.message; type = $event.detail.type; setTimeout(() => show = false, 3000)"
+    class="fixed top-5 right-5 z-50">
     <div :class="{
     'bg-green-500': type === 'success',
     'bg-red-500': type === 'error',

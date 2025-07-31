@@ -7,39 +7,385 @@
     <title>Boat Management Dashboard</title>
 </head>
 
-<body class="bg-gray-100 min-h-screen" x-data="dashboardApp()">
+<body class="bg-gray-100 min-h-screen" x-data="dashboardApp()" x-init="loadData()">
     <?!= include('Backend/Client/Components/Toast'); ?>
     <?!= include('Backend/Client/Components/LoadingSpinner'); ?>
     <?!= include('Backend/Client/Components/BookingModal'); ?>
+
     <div class="flex min-h-screen">
         <?!= include('Backend/Client/Components/Sidebar'); ?>
         <div class="flex-1 flex flex-col">
             <?!= include('Backend/Client/Components/Header'); ?>
             <main class="flex-1 p-6">
-                <h1 class="text-2xl font-bold mb-4">Boat Management System</h1>
-                <?!= include('Backend/Client/DashboardTable'); ?>
+                <!-- Dashboard Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                    <button @click="openAddBookingModal()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Add Booking
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-sm font-medium text-gray-500">Total Bookings</h3>
+                        <p class="text-2xl font-bold text-gray-900" x-text="bookings.length"></p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-sm font-medium text-gray-500">Today's Bookings</h3>
+                        <p class="text-2xl font-bold text-blue-600" x-text="getTodayBookings().length"></p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-sm font-medium text-gray-500">Total PAX</h3>
+                        <p class="text-2xl font-bold text-green-600" x-text="getTotalPax()"></p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-sm font-medium text-gray-500">Active Boats</h3>
+                        <p class="text-2xl font-bold text-purple-600" x-text="boats.length"></p>
+                    </div>
+                </div>
+
+                <!-- Bookings Table -->
+                <div class="bg-white rounded shadow overflow-hidden">
+                    <div class="px-6 py-4 border-b">
+                        <h2 class="text-lg font-semibold text-gray-800">Recent Bookings</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Date</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Trip Type</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Clients</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PAX</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Comments</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="booking in sortedBookings" :key="booking.ID">
+                                    <tr :class="getTripColor(booking.TripType)">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                            x-text="formatDate(booking.Date)"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                                :class="getTripBadgeClass(booking.TripType)"
+                                                x-text="booking.TripType"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                            x-text="booking.Clients"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900"
+                                            x-text="booking.TotalPAX"></td>
+                                        <td class="px-6 py-4 text-sm text-gray-500" x-text="booking.Comments"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button @click="editBooking(booking)"
+                                                class="text-blue-600 hover:text-blue-900 mr-2">Edit</button>
+                                            <button @click="deleteBooking(booking.ID)"
+                                                class="text-red-600 hover:text-red-900">Delete</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Messages Section -->
                 <?!= include('Backend/Client/Messages'); ?>
+
+                <!-- Admin Panel -->
                 <?!= include('Backend/Client/AdminPanel'); ?>
             </main>
         </div>
     </div>
+
     <script>
         function dashboardApp() {
             return {
-                // Alpine.js state and methods for the full dashboard
+                // Data
                 bookings: [],
                 users: [],
                 boats: [],
                 loading: false,
+
+                // UI State
                 showBookingModal: false,
                 bookingModalTitle: '',
-                bookingForm: { date: '', tripType: '', clients: '', totalPax: 1, comments: '' },
-                messageDate: '',
+                bookingForm: {
+                    date: '',
+                    tripType: '',
+                    clients: '',
+                    totalPax: 1,
+                    comments: '',
+                    boat: 'Default'
+                },
+                editingBookingId: null,
+
+                // Messages
+                messageDate: new Date().toISOString().split('T')[0],
                 messageType: 'driver',
                 generatedMessage: '',
+
+                // Admin
                 showAddUserModal: false,
                 showAddBoatModal: false,
-                // ...methods for CRUD, message generation, etc.
+
+                // Methods
+                async loadData() {
+                    this.loading = true;
+                    try {
+                        // Load bookings
+                        google.script.run
+                            .withSuccessHandler(result => {
+                                if (result.success) {
+                                    this.bookings = result.data || [];
+                                } else {
+                                    this.showToast('Error loading bookings: ' + result.error, 'error');
+                                }
+                            })
+                            .withFailureHandler(error => {
+                                this.showToast('Failed to load bookings: ' + error, 'error');
+                            })
+                            .getBookings();
+
+                        // Load boats
+                        google.script.run
+                            .withSuccessHandler(result => {
+                                if (result.success) {
+                                    this.boats = result.data || [];
+                                }
+                            })
+                            .getBoats();
+
+                        // Load users
+                        google.script.run
+                            .withSuccessHandler(result => {
+                                if (result.success) {
+                                    this.users = result.data || [];
+                                }
+                            })
+                            .getUsers();
+
+                    } catch (error) {
+                        this.showToast('Error loading data: ' + error, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                openAddBookingModal() {
+                    this.bookingModalTitle = 'Add New Booking';
+                    this.bookingForm = {
+                        date: new Date().toISOString().split('T')[0],
+                        tripType: '',
+                        clients: '',
+                        totalPax: 1,
+                        comments: '',
+                        boat: 'Default'
+                    };
+                    this.editingBookingId = null;
+                    this.showBookingModal = true;
+                },
+
+                editBooking(booking) {
+                    this.bookingModalTitle = 'Edit Booking';
+                    this.bookingForm = {
+                        date: booking.Date,
+                        tripType: booking.TripType,
+                        clients: booking.Clients,
+                        totalPax: booking.TotalPAX,
+                        comments: booking.Comments || '',
+                        boat: booking.Boat || 'Default'
+                    };
+                    this.editingBookingId = booking.ID;
+                    this.showBookingModal = true;
+                },
+
+                async saveBooking() {
+                    this.loading = true;
+                    try {
+                        if (this.editingBookingId) {
+                            google.script.run
+                                .withSuccessHandler(response => {
+                                    if (response.success) {
+                                        this.showToast('Booking updated successfully!', 'success');
+                                        this.loadData();
+                                        this.showBookingModal = false;
+                                    } else {
+                                        this.showToast('Error updating booking: ' + response.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(error => {
+                                    this.showToast('Error updating booking: ' + error, 'error');
+                                    this.loading = false;
+                                })
+                                .updateBooking(this.editingBookingId, this.bookingForm);
+                        } else {
+                            google.script.run
+                                .withSuccessHandler(response => {
+                                    if (response.success) {
+                                        this.showToast('Booking added successfully!', 'success');
+                                        this.loadData();
+                                        this.showBookingModal = false;
+                                    } else {
+                                        this.showToast('Error adding booking: ' + response.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(error => {
+                                    this.showToast('Error adding booking: ' + error, 'error');
+                                    this.loading = false;
+                                })
+                                .addBooking(this.bookingForm);
+                        }
+                    } catch (error) {
+                        this.showToast('Error saving booking: ' + error, 'error');
+                        this.loading = false;
+                    }
+                },
+
+                async deleteBooking(id) {
+                    if (!confirm('Are you sure you want to delete this booking?')) return;
+
+                    this.loading = true;
+                    try {
+                        google.script.run
+                            .withSuccessHandler(response => {
+                                if (response.success) {
+                                    this.showToast('Booking deleted successfully!', 'success');
+                                    this.loadData();
+                                } else {
+                                    this.showToast('Error deleting booking: ' + response.error, 'error');
+                                }
+                                this.loading = false;
+                            })
+                            .withFailureHandler(error => {
+                                this.showToast('Error deleting booking: ' + error, 'error');
+                                this.loading = false;
+                            })
+                            .deleteBooking(id);
+                    } catch (error) {
+                        this.showToast('Error deleting booking: ' + error, 'error');
+                        this.loading = false;
+                    }
+                },
+
+                async generateMessage() {
+                    this.loading = true;
+                    try {
+                        if (this.messageType === 'driver') {
+                            google.script.run
+                                .withSuccessHandler(response => {
+                                    if (response.success) {
+                                        this.generatedMessage = response.message;
+                                        this.showToast('Message generated successfully!', 'success');
+                                    } else {
+                                        this.showToast('Error generating message: ' + response.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(error => {
+                                    this.showToast('Failed to generate message: ' + error, 'error');
+                                    this.loading = false;
+                                })
+                                .generateDriverMessage(this.messageDate);
+                        } else {
+                            google.script.run
+                                .withSuccessHandler(response => {
+                                    if (response.success) {
+                                        this.generatedMessage = response.message;
+                                        this.showToast('Message generated successfully!', 'success');
+                                    } else {
+                                        this.showToast('Error generating message: ' + response.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(error => {
+                                    this.showToast('Failed to generate message: ' + error, 'error');
+                                    this.loading = false;
+                                })
+                                .generateStaffMessage(this.messageDate);
+                        }
+                    } catch (error) {
+                        this.showToast('Error generating message: ' + error, 'error');
+                        this.loading = false;
+                    }
+                },
+
+                copyMessage() {
+                    navigator.clipboard.writeText(this.generatedMessage).then(() => {
+                        this.showToast('Message copied to clipboard!', 'success');
+                    });
+                },
+
+                printMessage() {
+                    const printWindow = window.open('', '_blank');
+                    printWindow.document.write('<pre>' + this.generatedMessage + '</pre>');
+                    printWindow.document.close();
+                    printWindow.print();
+                },
+
+                // Computed properties
+                get sortedBookings() {
+                    return this.bookings.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+                },
+
+                getTodayBookings() {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.bookings.filter(booking => booking.Date === today);
+                },
+
+                getTotalPax() {
+                    return this.bookings.reduce((sum, booking) => sum + (parseInt(booking.TotalPAX) || 0), 0);
+                },
+
+                // Utility methods
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString();
+                },
+
+                getTripColor(tripType) {
+                    const colors = {
+                        'Private': 'bg-purple-50',
+                        'Shared': 'bg-blue-50',
+                        'Sunset': 'bg-orange-50',
+                        'Day Off': 'bg-red-50'
+                    };
+                    return colors[tripType] || 'bg-gray-50';
+                },
+
+                getTripBadgeClass(tripType) {
+                    const classes = {
+                        'Private': 'bg-purple-100 text-purple-800',
+                        'Shared': 'bg-blue-100 text-blue-800',
+                        'Sunset': 'bg-orange-100 text-orange-800',
+                        'Day Off': 'bg-red-100 text-red-800'
+                    };
+                    return classes[tripType] || 'bg-gray-100 text-gray-800';
+                },
+
+                showToast(message, type = 'info') {
+                    // Dispatch custom event for toast component
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message, type }
+                    }));
+                }
             }
         }
     </script>
