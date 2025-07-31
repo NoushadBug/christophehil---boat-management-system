@@ -372,7 +372,7 @@
                                     </template>
                                 </tbody>
                             </table>
-                            <button @click="showAddUserModal = true"
+                            <button @click="openAddUserModal()"
                                 class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
                                 <i class='bx bx-plus mr-2'></i> Add User
                             </button>
@@ -408,7 +408,7 @@
                                     </template>
                                 </tbody>
                             </table>
-                            <button @click="showAddBoatModal = true"
+                            <button @click="openAddBoatModal()"
                                 class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
                                 <i class='bx bx-plus mr-2'></i> Add Boat
                             </button>
@@ -602,6 +602,9 @@
                     </div>
                 </div>
 
+                <?!= include('Backend/Client/AddUserModal'); ?>
+                <?!= include('Backend/Client/AddBoatModal'); ?>
+
                 <!-- jQuery -->
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
                 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -665,6 +668,23 @@
                 // Admin
                 showAddUserModal: false,
                 showAddBoatModal: false,
+                userModalTitle: '',
+                boatModalTitle: '',
+                userForm: {
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'Staff',
+                    accessBoats: ''
+                },
+                editingUserId: null,
+                boatForm: {
+                    name: '',
+                    color: '🛥️',
+                    maxCapacity: 12,
+                    managers: ''
+                },
+                editingBoatId: null,
 
                 // Methods
                 async loadData() {
@@ -1045,10 +1065,132 @@
                     }
                 },
 
+                openAddUserModal() {
+                    this.userModalTitle = 'Add New User';
+                    this.userForm = { name: '', email: '', password: '', role: 'Staff', accessBoats: '' };
+                    this.editingUserId = null;
+                    this.showAddUserModal = true;
+                },
+
+                editUser(user) {
+                    this.userModalTitle = 'Edit User';
+                    this.userForm = {
+                        name: user.Name,
+                        email: user.Email,
+                        password: '',
+                        role: user.Role,
+                        accessBoats: user.AccessBoats
+                    };
+                    this.editingUserId = user.ID;
+                    this.showAddUserModal = true;
+                },
+
+                saveUser() {
+                    this.loading = true;
+                    try {
+                        if (this.editingUserId) {
+                            google.script.run
+                                .withSuccessHandler(res => {
+                                    if (res.success) {
+                                        this.showToast('User updated successfully!', 'success');
+                                        this.loadData();
+                                        this.showAddUserModal = false;
+                                    } else {
+                                        this.showToast('Error updating user: ' + res.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(err => {
+                                    this.showToast('Error updating user: ' + err, 'error');
+                                    this.loading = false;
+                                })
+                                .updateUser(this.editingUserId, this.userForm);
+                        } else {
+                            google.script.run
+                                .withSuccessHandler(res => {
+                                    if (res.success) {
+                                        this.showToast('User added successfully!', 'success');
+                                        this.loadData();
+                                        this.showAddUserModal = false;
+                                    } else {
+                                        this.showToast('Error adding user: ' + res.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(err => {
+                                    this.showToast('Error adding user: ' + err, 'error');
+                                    this.loading = false;
+                                })
+                                .addUser(this.userForm);
+                        }
+                    } catch (error) {
+                        this.showToast('Error saving user: ' + error, 'error');
+                        this.loading = false;
+                    }
+                },
+
                 // Boat management functions
+                openAddBoatModal() {
+                    this.boatModalTitle = 'Add New Boat';
+                    this.boatForm = { name: '', color: '🛥️', maxCapacity: 12, managers: '' };
+                    this.editingBoatId = null;
+                    this.showAddBoatModal = true;
+                },
+
                 editBoat(boat) {
-                    // TODO: Implement boat edit modal
-                    this.showToast('Boat edit functionality coming soon!', 'info');
+                    this.boatModalTitle = 'Edit Boat';
+                    this.boatForm = {
+                        name: boat.Name,
+                        color: boat.Color,
+                        maxCapacity: parseInt(boat.MaxCapacity) || 12,
+                        managers: boat.Managers
+                    };
+                    this.editingBoatId = boat.ID;
+                    this.showAddBoatModal = true;
+                },
+
+                saveBoat() {
+                    this.loading = true;
+                    try {
+                        if (this.editingBoatId) {
+                            google.script.run
+                                .withSuccessHandler(res => {
+                                    if (res.success) {
+                                        this.showToast('Boat updated successfully!', 'success');
+                                        this.loadData();
+                                        this.showAddBoatModal = false;
+                                    } else {
+                                        this.showToast('Error updating boat: ' + res.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(err => {
+                                    this.showToast('Error updating boat: ' + err, 'error');
+                                    this.loading = false;
+                                })
+                                .updateBoat(this.editingBoatId, this.boatForm);
+                        } else {
+                            google.script.run
+                                .withSuccessHandler(res => {
+                                    if (res.success) {
+                                        this.showToast('Boat added successfully!', 'success');
+                                        this.loadData();
+                                        this.showAddBoatModal = false;
+                                    } else {
+                                        this.showToast('Error adding boat: ' + res.error, 'error');
+                                    }
+                                    this.loading = false;
+                                })
+                                .withFailureHandler(err => {
+                                    this.showToast('Error adding boat: ' + err, 'error');
+                                    this.loading = false;
+                                })
+                                .addBoat(this.boatForm);
+                        }
+                    } catch (error) {
+                        this.showToast('Error saving boat: ' + error, 'error');
+                        this.loading = false;
+                    }
                 },
 
                 removeBoat(boat) {

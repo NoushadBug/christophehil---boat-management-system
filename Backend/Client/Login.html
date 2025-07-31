@@ -1,40 +1,32 @@
-<!DOCTYPE html>
-<html>
+<div x-show="!$store.appStore.isULoggedIn" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div class="text-center mb-6">
+            <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" alt="Boat Logo"
+                class="w-16 h-16 mx-auto mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Boat Management System</h2>
+            <p class="text-gray-600 mt-2">Sign in to your account</p>
+        </div>
 
-<head>
-    <title>Login - Boat Management</title>
-</head>
-
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div x-show="!$store.appStore.isULoggedIn" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-            <div class="text-center mb-6">
-                <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" alt="Boat Logo"
-                    class="w-16 h-16 mx-auto mb-4">
-                <h2 class="text-2xl font-bold text-gray-800">Boat Management System</h2>
-                <p class="text-gray-600 mt-2">Sign in to your account</p>
+        <form @submit.prevent="login()">
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
+                <div class="relative">
+                    <i class='bx bx-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+                    <input type="email" name="email"
+                        class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter your email" required>
+                </div>
             </div>
 
-            <form @submit.prevent="$root.login()" x-data="{ email: '', password: '' }">
-                <div class="mb-4">
-                    <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
-                    <div class="relative">
-                        <i class='bx bx-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
-                        <input type="email" x-model="email"
-                            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter your email" required>
-                    </div>
+            <div class="mb-6">
+                <label class="block mb-2 text-sm font-medium text-gray-700">Password</label>
+                <div class="relative">
+                    <i class='bx bx-lock-alt absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
+                    <input type="password" name="password"
+                        class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter your password" required>
                 </div>
-
-                <div class="mb-6">
-                    <label class="block mb-2 text-sm font-medium text-gray-700">Password</label>
-                    <div class="relative">
-                        <i class='bx bx-lock-alt absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'></i>
-                        <input type="password" x-model="password"
-                            class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter your password" required>
-                    </div>
-                </div>
+            </div>
 
                 <button type="submit"
                     class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 flex items-center justify-center">
@@ -50,6 +42,4 @@
             </div>
         </div>
     </div>
-</body>
-
-</html>
+</div>

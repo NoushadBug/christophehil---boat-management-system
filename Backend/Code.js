@@ -86,6 +86,23 @@ function initializeSpreadsheet() {
   }
 }
 
+// Cached sheet fetcher for efficiency
+function getSheetData(sheetName) {
+  const cache = CacheService.getScriptCache();
+  const key = 'data_' + sheetName;
+  const cached = cache.get(key);
+  if (cached) return JSON.parse(cached);
+  const sheetId = getSheetIdFromProperties() || initializeSpreadsheet().getId();
+  const ss = SpreadsheetApp.openById(sheetId);
+  const data = ss.getSheetByName(sheetName).getDataRange().getValues();
+  cache.put(key, JSON.stringify(data), 60);
+  return data;
+}
+
+function clearSheetCache(sheetName) {
+  CacheService.getScriptCache().remove('data_' + sheetName);
+}
+
 // Helper to check user permissions
 function isAuthorized(user, action, resource) {
   if (!user || !user.Role) return false;
@@ -102,13 +119,7 @@ function isAuthorized(user, action, resource) {
 // Example: getBookings now requires user param and filters by permission
 function getBookings(user) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
-    const sheet = ss.getSheetByName(BOOKINGS_SHEET);
-    const data = sheet.getDataRange().getValues();
+    const data = getSheetData(BOOKINGS_SHEET);
     if (data.length <= 1) {
       return { success: true, data: [] };
     }
@@ -179,6 +190,7 @@ function addBooking(bookingData) {
     ];
 
     sheet.appendRow(newRow);
+    clearSheetCache(BOOKINGS_SHEET);
     return { success: true, id: bookingId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -235,6 +247,7 @@ function updateBooking(id, bookingData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+        clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
       }
     }
@@ -263,6 +276,7 @@ function deleteBooking(id) {
       if (data[i][bookingIdIndex] === id) {
         // Soft delete by setting IsArchived to Yes
         sheet.getRange(i + 1, isArchivedIndex + 1).setValue('Yes');
+        clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
       }
     }
@@ -275,14 +289,7 @@ function deleteBooking(id) {
 // Get users with enhanced structure
 function getUsers() {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
-    const sheet = ss.getSheetByName(USERS_SHEET);
-    const data = sheet.getDataRange().getValues();
+    const data = getSheetData(USERS_SHEET);
 
     if (data.length <= 1) {
       return { success: true, data: [] };
@@ -306,14 +313,7 @@ function getUsers() {
 // Get boats with enhanced structure
 function getBoats() {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
-    const sheet = ss.getSheetByName(BOATS_SHEET);
-    const data = sheet.getDataRange().getValues();
+    const data = getSheetData(BOATS_SHEET);
 
     if (data.length <= 1) {
       return { success: true, data: [] };
@@ -337,14 +337,7 @@ function getBoats() {
 // Get trip types
 function getTripTypes() {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
-    const sheet = ss.getSheetByName(TRIP_TYPES_SHEET);
-    const data = sheet.getDataRange().getValues();
+    const data = getSheetData(TRIP_TYPES_SHEET);
 
     if (data.length <= 1) {
       return { success: true, data: [] };
@@ -389,6 +382,7 @@ function addUser(userData) {
     ];
 
     sheet.appendRow(newRow);
+    clearSheetCache(USERS_SHEET);
     return { success: true, id: userId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -423,6 +417,7 @@ function updateUser(id, userData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+        clearSheetCache(USERS_SHEET);
         return { success: true };
       }
     }
@@ -450,6 +445,7 @@ function deleteUser(id) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][userIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
+        clearSheetCache(USERS_SHEET);
         return { success: true };
       }
     }
@@ -482,6 +478,7 @@ function addBoat(boatData) {
     ];
 
     sheet.appendRow(newRow);
+    clearSheetCache(BOATS_SHEET);
     return { success: true, id: boatId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -515,6 +512,7 @@ function updateBoat(id, boatData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+        clearSheetCache(BOATS_SHEET);
         return { success: true };
       }
     }
@@ -542,6 +540,7 @@ function deleteBoat(id) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][boatIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
+        clearSheetCache(BOATS_SHEET);
         return { success: true };
       }
     }
