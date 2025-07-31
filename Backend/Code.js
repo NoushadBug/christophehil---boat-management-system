@@ -86,21 +86,19 @@ function initializeSpreadsheet() {
   }
 }
 
-// Cached sheet fetcher for efficiency
-function getSheetData(sheetName) {
-  const cache = CacheService.getScriptCache();
-  const key = 'data_' + sheetName;
-  const cached = cache.get(key);
-  if (cached) return JSON.parse(cached);
-  const sheetId = getSheetIdFromProperties() || initializeSpreadsheet().getId();
-  const ss = SpreadsheetApp.openById(sheetId);
-  const data = ss.getSheetByName(sheetName).getDataRange().getValues();
-  cache.put(key, JSON.stringify(data), 60);
-  return data;
+let SPREADSHEET;
+
+function getSpreadsheet() {
+  if (!SPREADSHEET) {
+    const id = getSheetIdFromProperties();
+    SPREADSHEET = id ? SpreadsheetApp.openById(id) : initializeSpreadsheet();
+  }
+  return SPREADSHEET;
 }
 
-function clearSheetCache(sheetName) {
-  CacheService.getScriptCache().remove('data_' + sheetName);
+function getSheetData(sheetName) {
+  const ss = getSpreadsheet();
+  return ss.getSheetByName(sheetName).getDataRange().getValues();
 }
 
 // Helper to check user permissions
@@ -144,12 +142,7 @@ function getBookings(user) {
 // Add new booking with enhanced structure
 function addBooking(bookingData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
 
     // Generate unique booking ID
@@ -190,7 +183,6 @@ function addBooking(bookingData) {
     ];
 
     sheet.appendRow(newRow);
-    clearSheetCache(BOOKINGS_SHEET);
     return { success: true, id: bookingId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -200,12 +192,7 @@ function addBooking(bookingData) {
 // Update booking with enhanced structure
 function updateBooking(id, bookingData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -247,7 +234,6 @@ function updateBooking(id, bookingData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
-        clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
       }
     }
@@ -260,12 +246,7 @@ function updateBooking(id, bookingData) {
 // Delete booking (soft delete by setting IsArchived to Yes)
 function deleteBooking(id) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -276,7 +257,6 @@ function deleteBooking(id) {
       if (data[i][bookingIdIndex] === id) {
         // Soft delete by setting IsArchived to Yes
         sheet.getRange(i + 1, isArchivedIndex + 1).setValue('Yes');
-        clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
       }
     }
@@ -361,12 +341,7 @@ function getTripTypes() {
 // Add user
 function addUser(userData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
 
     const userId = 'USER-' + new Date().getTime();
@@ -382,7 +357,6 @@ function addUser(userData) {
     ];
 
     sheet.appendRow(newRow);
-    clearSheetCache(USERS_SHEET);
     return { success: true, id: userId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -392,12 +366,7 @@ function addUser(userData) {
 // Update user
 function updateUser(id, userData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -417,7 +386,6 @@ function updateUser(id, userData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
-        clearSheetCache(USERS_SHEET);
         return { success: true };
       }
     }
@@ -430,12 +398,7 @@ function updateUser(id, userData) {
 // Delete user (soft delete)
 function deleteUser(id) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -445,7 +408,6 @@ function deleteUser(id) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][userIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
-        clearSheetCache(USERS_SHEET);
         return { success: true };
       }
     }
@@ -458,12 +420,7 @@ function deleteUser(id) {
 // Add boat
 function addBoat(boatData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
 
     const boatId = 'BOAT-' + new Date().getTime();
@@ -478,7 +435,6 @@ function addBoat(boatData) {
     ];
 
     sheet.appendRow(newRow);
-    clearSheetCache(BOATS_SHEET);
     return { success: true, id: boatId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -488,12 +444,7 @@ function addBoat(boatData) {
 // Update boat
 function updateBoat(id, boatData) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -512,7 +463,6 @@ function updateBoat(id, boatData) {
         ];
 
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
-        clearSheetCache(BOATS_SHEET);
         return { success: true };
       }
     }
@@ -525,12 +475,7 @@ function updateBoat(id, boatData) {
 // Delete boat (soft delete)
 function deleteBoat(id) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -540,7 +485,6 @@ function deleteBoat(id) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][boatIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
-        clearSheetCache(BOATS_SHEET);
         return { success: true };
       }
     }
@@ -607,8 +551,7 @@ function generateStaffMessage(date) {
       const totalPax = boatBookings.reduce((sum, booking) => sum + (parseInt(booking.TotalPAX) || 0), 0);
 
       // Get boat color from Boats sheet
-      const ss = SpreadsheetApp.openById(getSheetIdFromProperties());
-      const boatsSheet = ss.getSheetByName(BOATS_SHEET);
+      const boatsSheet = getSpreadsheet().getSheetByName(BOATS_SHEET);
       const boatsData = boatsSheet.getDataRange().getValues();
       const boatRow = boatsData.find(row => row[1] === boatName);
       const boatColor = boatRow ? boatRow[2] : '🛥️';
@@ -640,11 +583,7 @@ function generateStaffMessage(date) {
 // User login/authentication
 function loginUser(email, password) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) {
