@@ -8,7 +8,7 @@
 - `Client/Login.html`: Login UI
 
 ## How to Extend
-- Add new UI files in `Client/` and include with `<?!= include('Client/YourFile'); ?>`
+- Add new UI files in `Client/` and include with `<?!= include('Backend/Client/YourFile'); ?>`
 - Add backend logic in `Code.gs` or new `.gs` files
 
 ## Deployment

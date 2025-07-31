@@ -1,0 +1,21 @@
+<header class="bg-white shadow flex items-center justify-between px-6 py-3">
+    <div class="flex items-center gap-3">
+        <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" alt="Boat Logo" class="h-8 w-8">
+        <span class="text-xl font-bold tracking-wide text-gray-800">Boat Management System</span>
+    </div>
+    <div class="relative" x-data="{ open: false }">
+        <button @click="open = !open" class="flex items-center gap-2 focus:outline-none">
+            <span class="font-medium text-gray-700">User</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+        <div x-show="open" @click.away="open = false"
+            class="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-50">
+            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
+            <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Settings</a>
+            <div class="border-t"></div>
+            <a href="#" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+        </div>
+    </div>
+</header>
