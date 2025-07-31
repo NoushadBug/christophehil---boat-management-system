@@ -1,0 +1,25 @@
+<div>
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+        <thead>
+            <tr>
+                <th class="px-4 py-2">Date</th>
+                <th class="px-4 py-2">Trip Type</th>
+                <th class="px-4 py-2">Clients</th>
+                <th class="px-4 py-2">Total PAX</th>
+                <th class="px-4 py-2">Comments</th>
+                <!-- Add more columns as needed -->
+            </tr>
+        </thead>
+        <tbody>
+            <template x-for="row in bookings" :key="row.id">
+                <tr :class="row.tripColor">
+                    <td class="border px-4 py-2" x-text="row.date"></td>
+                    <td class="border px-4 py-2 font-bold" x-text="row.tripType"></td>
+                    <td class="border px-4 py-2" x-text="row.clients"></td>
+                    <td class="border px-4 py-2 text-center font-semibold" x-text="row.totalPax"></td>
+                    <td class="border px-4 py-2" x-text="row.comments"></td>
+                </tr>
+            </template>
+        </tbody>
+    </table>
+</div>
