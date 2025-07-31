@@ -2,7 +2,6 @@
 <html>
 
 <head>
-    <?!= include('Backend/Client/Styles/Stylesheet'); ?>
     <title>Login - Boat Management</title>
 </head>
 
@@ -16,7 +15,7 @@
                 <p class="text-gray-600 mt-2">Sign in to your account</p>
             </div>
 
-            <form @submit.prevent="login()" x-data="{ email: '', password: '' }">
+            <form @submit.prevent="$root.login()" x-data="{ email: '', password: '' }">
                 <div class="mb-4">
                     <label class="block mb-2 text-sm font-medium text-gray-700">Email</label>
                     <div class="relative">

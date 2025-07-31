@@ -2,7 +2,41 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+function getSheetIdFromProperties() {
+  var id = PropertiesService.getScriptProperties().getProperty('BOAT_MGMT_SHEET_ID');
+  return id;
+}
+
 function doGet() {
+  var sheetId = getSheetIdFromProperties();
+  if (!sheetId) {
+    // No sheet ID set, show message and log generator output
+    var html = HtmlService.createHtmlOutput(
+      '<div style="max-width:500px;margin:40px auto;padding:32px;background:#fff;border-radius:12px;box-shadow:0 2px 12px #0001;text-align:center">' +
+      '<h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">No spreadsheet found</h2>' +
+      '<p style="margin-bottom:1.5rem">Please run the generator to create the Boat Management System spreadsheet.</p>' +
+      '<button id="runGenBtn" style="background:#2563eb;color:#fff;padding:0.75rem 2rem;border:none;border-radius:6px;font-size:1rem;cursor:pointer">Run Generator</button>' +
+      '<pre id="genLog" style="margin-top:2rem;text-align:left;max-height:500px;min-height:220px;overflow:auto;background:#f3f4f6;padding:1rem;border-radius:6px;font-size:0.95rem"></pre>' +
+      '<div id="reloadDiv" style="margin-top:1.5rem;display:none;color:#059669;font-weight:500;font-size:1.1rem">Generation complete. <b>Please reload the page</b> to continue.</div>' +
+      '<script>' +
+      'document.getElementById("runGenBtn").onclick = function() {' +
+      '  this.disabled = true; this.innerText = "Running...";' +
+      '  google.script.run.withSuccessHandler(function(res) {' +
+      '    document.getElementById("runGenBtn").style.display = "none";' +
+      '    document.getElementById("genLog").innerText = res && res.logs ? res.logs : "No logs.";' +
+      '    document.getElementById("reloadDiv").style.display = "block";' +
+      '  }).withFailureHandler(function(e){' +
+      '    document.getElementById("genLog").innerText = "❌ Generator failed: " + e;' +
+      '    document.getElementById("reloadDiv").style.display = "block";' +
+      '  }).runGeneratorWithLogs();' +
+      '};' +
+      '</script>' +
+      '</div>'
+    );
+    html.setTitle('Boat Management System');
+    html.addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    return html;
+  }
   var html = HtmlService.createTemplateFromFile('Backend/Client/Main');
   var evaluated = html.evaluate();
   evaluated.addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -11,8 +45,21 @@ function doGet() {
     .setTitle('Boat Management System');
 }
 
+function runGeneratorWithLogs() {
+  var logs = [];
+  function log(msg) { logs.push(msg); }
+  try {
+    log('🚀 Starting Boat Management System Spreadsheet Generator...');
+    var result = runGenerator(log);
+    log('✅ Generator finished.');
+    return { success: true, logs: logs.join('\n'), ...result };
+  } catch (err) {
+    log('❌ Error: ' + err);
+    return { success: false, logs: logs.join('\n'), error: err.toString() };
+  }
+}
+
 // Global variables for data management
-let SPREADSHEET_ID = '1s-kNRbVr-VUk8Otke0QCS-v8zPk491wCf9ICIuU8lek';
 const BOOKINGS_SHEET = 'Bookings';
 const USERS_SHEET = 'Users';
 const BOATS_SHEET = 'Boats';
@@ -24,63 +71,59 @@ const PARTNERS_SHEET = 'Partners';
 // Initialize spreadsheet if not exists
 function initializeSpreadsheet() {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       // Create new spreadsheet
       const ss = SpreadsheetApp.create('Boat Management System');
-      SPREADSHEET_ID = ss.getId();
-
-      // Create sheets
-      const bookingsSheet = ss.insertSheet(BOOKINGS_SHEET);
-      const usersSheet = ss.insertSheet(USERS_SHEET);
-      const boatsSheet = ss.insertSheet(BOATS_SHEET);
-
-      // Set up headers
-      bookingsSheet.getRange(1, 1, 1, 8).setValues([['ID', 'Date', 'Boat', 'TripType', 'Clients', 'TotalPAX', 'Comments', 'CreatedAt']]);
-      usersSheet.getRange(1, 1, 1, 5).setValues([['ID', 'Name', 'Email', 'Role', 'Boats']]);
-      boatsSheet.getRange(1, 1, 1, 4).setValues([['ID', 'Name', 'MaxCapacity', 'Managers']]);
-
-      // Add some sample data
-      const sampleBookings = [
-        ['1', '2025-08-05', 'MAYA', 'Private', 'Bella Vista', 7, 'Option for Sharlene', new Date().toISOString()],
-        ['2', '2025-08-09', 'PEARL', 'Shared', 'Amina et kaddour', 8, 'Shared boat trip', new Date().toISOString()]
-      ];
-
-      if (sampleBookings.length > 0) {
-        bookingsSheet.getRange(2, 1, sampleBookings.length, sampleBookings[0].length).setValues(sampleBookings);
-      }
+      sheetId = ss.getId();
+      PropertiesService.getScriptProperties().setProperty('BOAT_MGMT_SHEET_ID', sheetId);
     }
 
-    return SpreadsheetApp.openById(SPREADSHEET_ID);
+    return SpreadsheetApp.openById(sheetId);
   } catch (e) {
     console.error('Error initializing spreadsheet:', e);
     throw e;
   }
 }
 
-// Get all bookings with enhanced structure
-function getBookings() {
+// Helper to check user permissions
+function isAuthorized(user, action, resource) {
+  if (!user || !user.Role) return false;
+  if (user.Role === 'Admin') return true;
+  if (resource === 'boat' && user.AccessBoats) {
+    return user.AccessBoats.split(',').map(b => b.trim()).includes(action);
+  }
+  if (resource === 'booking' && user.AccessBoats) {
+    return user.AccessBoats.split(',').map(b => b.trim()).includes(action.Boat);
+  }
+  return false;
+}
+
+// Example: getBookings now requires user param and filters by permission
+function getBookings(user) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
-
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
-
     if (data.length <= 1) {
       return { success: true, data: [] };
     }
-
     const headers = data[0];
-    const bookings = data.slice(1).map(row => {
+    let bookings = data.slice(1).map(row => {
       const booking = {};
       headers.forEach((header, index) => {
         booking[header] = row[index];
       });
       return booking;
-    }).filter(booking => booking.IsArchived !== 'Yes'); // Filter out archived bookings
-
+    }).filter(booking => booking.IsArchived !== 'Yes');
+    // Filter bookings by user permission
+    if (user && user.Role !== 'Admin') {
+      bookings = bookings.filter(b => isAuthorized(user, b.Boat, 'boat'));
+    }
     return { success: true, data: bookings };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -90,11 +133,12 @@ function getBookings() {
 // Add new booking with enhanced structure
 function addBooking(bookingData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
 
     // Generate unique booking ID
@@ -144,11 +188,12 @@ function addBooking(bookingData) {
 // Update booking with enhanced structure
 function updateBooking(id, bookingData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -202,11 +247,12 @@ function updateBooking(id, bookingData) {
 // Delete booking (soft delete by setting IsArchived to Yes)
 function deleteBooking(id) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -229,11 +275,12 @@ function deleteBooking(id) {
 // Get users with enhanced structure
 function getUsers() {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
 
@@ -259,11 +306,12 @@ function getUsers() {
 // Get boats with enhanced structure
 function getBoats() {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
 
@@ -289,11 +337,12 @@ function getBoats() {
 // Get trip types
 function getTripTypes() {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(TRIP_TYPES_SHEET);
     const data = sheet.getDataRange().getValues();
 
@@ -319,11 +368,12 @@ function getTripTypes() {
 // Add user
 function addUser(userData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
 
     const userId = 'USER-' + new Date().getTime();
@@ -348,11 +398,12 @@ function addUser(userData) {
 // Update user
 function updateUser(id, userData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -384,11 +435,12 @@ function updateUser(id, userData) {
 // Delete user (soft delete)
 function deleteUser(id) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -410,11 +462,12 @@ function deleteUser(id) {
 // Add boat
 function addBoat(boatData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
 
     const boatId = 'BOAT-' + new Date().getTime();
@@ -438,11 +491,12 @@ function addBoat(boatData) {
 // Update boat
 function updateBoat(id, boatData) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -473,11 +527,12 @@ function updateBoat(id, boatData) {
 // Delete boat (soft delete)
 function deleteBoat(id) {
   try {
-    if (!SPREADSHEET_ID) {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
       initializeSpreadsheet();
     }
 
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -553,7 +608,7 @@ function generateStaffMessage(date) {
       const totalPax = boatBookings.reduce((sum, booking) => sum + (parseInt(booking.TotalPAX) || 0), 0);
 
       // Get boat color from Boats sheet
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const ss = SpreadsheetApp.openById(getSheetIdFromProperties());
       const boatsSheet = ss.getSheetByName(BOATS_SHEET);
       const boatsData = boatsSheet.getDataRange().getValues();
       const boatRow = boatsData.find(row => row[1] === boatName);
@@ -578,6 +633,44 @@ function generateStaffMessage(date) {
     });
 
     return { success: true, message: message };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// User login/authentication
+function loginUser(email, password) {
+  try {
+    var sheetId = getSheetIdFromProperties();
+    if (!sheetId) {
+      initializeSpreadsheet();
+    }
+    const ss = SpreadsheetApp.openById(sheetId);
+    const sheet = ss.getSheetByName(USERS_SHEET);
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return { success: false, error: 'No users found.' };
+    }
+    const headers = data[0];
+    const emailIdx = headers.indexOf('Email');
+    const passwordIdx = headers.indexOf('Password');
+    const isActiveIdx = headers.indexOf('IsActive');
+    const userRow = data.find((row, i) => i > 0 && row[emailIdx] === email && row[isActiveIdx] === 'Yes');
+    if (!userRow) {
+      return { success: false, error: 'Invalid email or inactive user.' };
+    }
+    // For demo: compare plaintext or base64
+    var inputPassword = password;
+    var inputPasswordBase64 = Utilities.base64Encode(password);
+    if (userRow[passwordIdx] !== inputPassword && userRow[passwordIdx] !== inputPasswordBase64) {
+      return { success: false, error: 'Invalid password.' };
+    }
+    // Return user info (excluding password)
+    const user = {};
+    headers.forEach((header, idx) => {
+      if (header !== 'Password') user[header] = userRow[idx];
+    });
+    return { success: true, user: user };
   } catch (e) {
     return { success: false, error: e.toString() };
   }

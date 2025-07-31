@@ -64,7 +64,8 @@
                 <i class='bx bx-message-square-dots mr-3'></i>
                 Messages
             </a>
-            <a class="flex items-center text-white py-4 pl-6 nav-item cursor-pointer opacity-75 hover:opacity-100"
+            <a x-show="isAdmin()"
+                class="flex items-center text-white py-4 pl-6 nav-item cursor-pointer opacity-75 hover:opacity-100"
                 :class="$store.appStore.adminView? 'active-nav-link opacity-100':''"
                 @click="changeView('adminView'); loadData();">
                 <i class='bx bx-cog mr-3'></i>
@@ -190,7 +191,8 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="booking in sortedBookings" :key="booking.BookingID">
+                                    <template x-for="booking in sortedBookings.filter(b => canViewBoat(b.Boat))"
+                                        :key="booking.BookingID">
                                         <tr>
                                             <td x-text="formatDate(booking.Date)"></td>
                                             <td>
@@ -207,12 +209,18 @@
                                                     x-text="booking.Status"></span>
                                             </td>
                                             <td>
-                                                <button @click="editBooking(booking)"
-                                                    class="text-blue-600 hover:text-blue-900 mr-2">
+                                                <button
+                                                    @click="canEditBooking(booking) ? editBooking(booking) : showToast('No permission', 'error')"
+                                                    :disabled="!canEditBooking(booking)"
+                                                    class="text-blue-600 hover:text-blue-900 mr-2"
+                                                    :class="!canEditBooking(booking) ? 'opacity-50 cursor-not-allowed' : ''">
                                                     <i class='bx bx-edit-alt'></i>
                                                 </button>
-                                                <button @click="deleteBooking(booking.BookingID)"
-                                                    class="text-red-600 hover:text-red-900">
+                                                <button
+                                                    @click="canEditBooking(booking) ? deleteBooking(booking.BookingID) : showToast('No permission', 'error')"
+                                                    :disabled="!canEditBooking(booking)"
+                                                    class="text-red-600 hover:text-red-900"
+                                                    :class="!canEditBooking(booking) ? 'opacity-50 cursor-not-allowed' : ''">
                                                     <i class='bx bx-trash'></i>
                                                 </button>
                                             </td>
@@ -328,7 +336,7 @@
                 </div>
 
                 <!-- Admin View -->
-                <div x-show="$store.appStore.adminView" class="space-y-6">
+                <div x-show="isAdmin() && $store.appStore.adminView" class="space-y-6">
                     <h1 class="text-2xl font-bold text-gray-800">Admin Panel</h1>
 
                     <div class="bg-white rounded shadow p-6">
@@ -621,6 +629,7 @@
                 users: [],
                 boats: [],
                 loading: false,
+                user: null,
 
                 // UI State
                 showBookingModal: false,
@@ -994,7 +1003,14 @@
                 },
 
                 logout() {
+                    this.user = null;
                     this.$store.appStore.isULoggedIn = false;
+                    this.$store.appStore.user = null;
+                    this.$store.appStore.dashboardView = true;
+                    this.$store.appStore.bookingsView = false;
+                    this.$store.appStore.messagesView = false;
+                    this.$store.appStore.adminView = false;
+                    localStorage.removeItem('bms_user');
                 },
 
                 // User management functions
@@ -1063,18 +1079,88 @@
 
                 // Login function
                 login() {
-                    // For demo purposes, accept any email/password
-                    this.$store.appStore.isULoggedIn = true;
-                    this.changeView('dashboardView');
-                    this.loadData();
-                }
+                    const email = document.querySelector('input[type=email]').value.trim();
+                    const password = document.querySelector('input[type=password]').value;
+                    this.loading = true;
+                    try {
+                        google.script.run
+                            .withSuccessHandler(res => {
+                                if (res.success) {
+                                    this.user = res.user;
+                                    this.$store.appStore.isULoggedIn = true;
+                                    this.$store.appStore.user = res.user;
+                                    this.$store.appStore.dashboardView = true;
+                                    this.$store.appStore.bookingsView = false;
+                                    this.$store.appStore.messagesView = false;
+                                    this.$store.appStore.adminView = false;
+                                    // Store in localStorage with 10 day expiry
+                                    const session = { user: res.user, ts: Date.now() };
+                                    localStorage.setItem('bms_user', JSON.stringify(session));
+                                    this.loadData();
+                                    this.showToast('Login successful!', 'success');
+                                } else {
+                                    this.showToast(res.error || 'Login failed', 'error');
+                                }
+                                this.loading = false;
+                            })
+                            .withFailureHandler(error => {
+                                this.showToast('Login error: ' + error, 'error');
+                                this.loading = false;
+                            })
+                            .loginUser(email, password);
+                    } catch (error) {
+                        this.showToast('Login error: ' + error, 'error');
+                        this.loading = false;
+                    }
+                },
+                checkSession() {
+                    const sessionStr = localStorage.getItem('bms_user');
+                    if (sessionStr) {
+                        const session = JSON.parse(sessionStr);
+                        // 10 days expiry
+                        if (session.ts && (Date.now() - session.ts) < 10 * 24 * 60 * 60 * 1000) {
+                            this.user = session.user;
+                            this.$store.appStore.isULoggedIn = true;
+                            this.$store.appStore.user = session.user;
+                            this.$store.appStore.dashboardView = true;
+                            this.loadData();
+                            return true;
+                        } else {
+                            localStorage.removeItem('bms_user');
+                            this.showToast('Session expired. Please log in again.', 'error');
+                        }
+                    }
+                    this.$store.appStore.isULoggedIn = false;
+                    return false;
+                },
+                // Permission helpers
+                canViewBoat(boatName) {
+                    if (!this.user) return false;
+                    if (this.user.Role === 'Admin') return true;
+                    if (!this.user.AccessBoats) return false;
+                    return this.user.AccessBoats.split(',').map(b => b.trim()).includes(boatName);
+                },
+                canEditBooking(booking) {
+                    if (!this.user) return false;
+                    if (this.user.Role === 'Admin') return true;
+                    if (!this.user.AccessBoats) return false;
+                    return this.user.AccessBoats.split(',').map(b => b.trim()).includes(booking.Boat);
+                },
+                isAdmin() {
+                    return this.user && this.user.Role === 'Admin';
+                },
+                // On Alpine init
+                init() {
+                    this.checkSession();
+                },
             }
         }
 
         // Alpine.js store
         document.addEventListener('alpine:init', () => {
             Alpine.store('appStore', {
-                isULoggedIn: false, // Start with login screen
+                isULoggedIn: false,
+                user: null,
                 dashboardView: true,
                 bookingsView: false,
                 messagesView: false,

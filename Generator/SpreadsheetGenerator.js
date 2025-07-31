@@ -4,11 +4,19 @@
  * Includes all recommended fixes and improvements
  */
 
+function setSheetIdProperty(sheetId) {
+    PropertiesService.getScriptProperties().setProperty('BOAT_MGMT_SHEET_ID', sheetId);
+}
+function getSheetIdProperty() {
+    return PropertiesService.getScriptProperties().getProperty('BOAT_MGMT_SHEET_ID');
+}
+
 function createBoatManagementSpreadsheet() {
     try {
         // Create the main spreadsheet
         const ss = SpreadsheetApp.create('Boat Management System - ' + new Date().toISOString().split('T')[0]);
         const spreadsheetId = ss.getId();
+        setSheetIdProperty(spreadsheetId);
 
         console.log('Created spreadsheet with ID: ' + spreadsheetId);
 
@@ -74,11 +82,14 @@ function createUsersSheet(ss) {
 
     // Enhanced headers for users with security improvements
     const headers = [
-        'ID', 'Name', 'Email', 'PasswordHash', 'Role', 'Permissions',
-        'AccessBoats', 'Phone', 'IsActive', 'LastLoginAt', 'CreatedAt'
+        'ID', 'Name', 'Email', 'Password', 'Role', 'AccessBoats', 'Permissions',
+        'Phone', 'IsActive', 'LastLoginAt', 'CreatedAt'
     ];
 
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+    // Add note to Password column
+    sheet.getRange(1, 4).setNote('The default password is abc123');
 
     // Format header row
     const headerRange = sheet.getRange(1, 1, 1, headers.length);
@@ -297,36 +308,17 @@ function addSampleBookings(ss, now) {
 }
 
 function addSampleUsers(ss, now) {
-    const sheet = ss.getSheetByName('Users');
-
-    // Hash passwords using SHA-256 (simplified for demo)
-    const passwordHash = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'; // "password123"
-
-    const sampleUsers = [
-        [
-            '1', 'Christophe', 'christophe@boatmanagement.com', passwordHash, 'Admin', 'all',
-            'MAYA,PEARL,BELLA,SUNSET', '+255 123 456 789', 'Yes', now, now
-        ],
-        [
-            '2', 'Diana', 'diana@boatmanagement.com', passwordHash, 'Staff', 'view,edit',
-            'MAYA,PEARL,BELLA,SUNSET', '+255 987 654 321', 'Yes', now, now
-        ],
-        [
-            '3', 'James', 'james@boatmanagement.com', passwordHash, 'Driver', 'view',
-            'MAYA,SUNSET', '+255 555 123 456', 'Yes', now, now
-        ],
-        [
-            '4', 'Juma', 'juma@boatmanagement.com', passwordHash, 'Driver', 'view',
-            'PEARL,BELLA', '+255 777 888 999', 'Yes', now, now
-        ],
-        [
-            '5', 'Momo', 'momo@boatmanagement.com', passwordHash, 'Driver', 'view',
-            'MAYA,BELLA', '+255 111 222 333', 'Yes', now, now
-        ]
+    var sheet = ss.getSheetByName('Users');
+    var defaultPassword = base64Encode('abc123');
+    var users = [
+        ['1', 'Christophe', 'christophe@boatmanagement.com', defaultPassword, 'Admin', 'MAYA,PEARL,BELLA,SUNSET', 'all', '+255 123 456 789', 'Yes', now, now],
+        ['2', 'Diana', 'diana@boatmanagement.com', defaultPassword, 'Staff', 'MAYA,PEARL,BELLA,SUNSET', 'view,edit', '+255 987 654 321', 'Yes', now, now],
+        ['3', 'James', 'james@boatmanagement.com', defaultPassword, 'Driver', 'MAYA,SUNSET', 'view', '+255 555 123 456', 'Yes', now, now],
+        ['4', 'Juma', 'juma@boatmanagement.com', defaultPassword, 'Driver', 'PEARL,BELLA', 'view', '+255 777 888 999', 'Yes', now, now],
+        ['5', 'Momo', 'momo@boatmanagement.com', defaultPassword, 'Driver', 'MAYA,BELLA', 'view', '+255 111 222 333', 'Yes', now, now]
     ];
-
-    if (sampleUsers.length > 0) {
-        sheet.getRange(2, 1, sampleUsers.length, sampleUsers[0].length).setValues(sampleUsers);
+    if (users.length > 0) {
+        sheet.getRange(2, 1, users.length, users[0].length).setValues(users);
     }
 }
 
@@ -507,6 +499,10 @@ function formatAllSheets(ss) {
     });
 
     console.log('✅ Formatted all sheets');
+}
+
+function base64Encode(str) {
+    return Utilities.base64Encode(str);
 }
 
 // Function to run the generator
