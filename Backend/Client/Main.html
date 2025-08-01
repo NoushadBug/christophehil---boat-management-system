@@ -22,6 +22,41 @@
 <body x-data="dashboardApp()" x-init="setTimeout(() => loading = false, 800)"
     class="bg-gray-100 font-family-karla flex">
 
+    <script>
+        // Expose Alpine component methods globally for template includes or context leaks
+        window.formatDate = function (dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        };
+        window.getTripBadgeClass = function (tripType) {
+            const classes = {
+                'Private': 'bg-purple-100 text-purple-800',
+                'Shared': 'bg-blue-100 text-blue-800',
+                'Sunset': 'bg-orange-100 text-orange-800',
+                'DayOff': 'bg-red-100 text-red-800',
+                'Day Off': 'bg-red-100 text-red-800'
+            };
+            return classes[tripType] || 'bg-gray-100 text-gray-800';
+        };
+        window.getStatusBadgeClass = function (status) {
+            const classes = {
+                'Confirmed': 'bg-green-100 text-green-800',
+                'Pending': 'bg-yellow-100 text-yellow-800',
+                'Cancelled': 'bg-red-100 text-red-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        };
+        window.canEditBooking = function (booking) {
+            // This assumes a global Alpine store for user and access
+            const user = Alpine.store('appStore').user;
+            if (!user) return false;
+            if (user.Role === 'Admin') return true;
+            if (!user.AccessBoats) return false;
+            return user.AccessBoats.split(',').map(b => b.trim()).includes(booking.Boat);
+        };
+    </script>
+
     <!-- Full-Screen Loading Animation -->
     <div x-show="loading" class="fixed inset-0 flex items-center justify-center bg-gray-800 z-50">
         <div class="flex items-center justify-center">
@@ -695,7 +730,9 @@
                             .withSuccessHandler(result => {
                                 if (result.success) {
                                     this.bookings = result.data || [];
-                                    this.initializeDataTables();
+                                    this.$nextTick(() => {
+                                        this.initializeDataTables();
+                                    });
                                 } else {
                                     this.showToast('Error loading bookings: ' + result.error, 'error');
                                 }
@@ -898,40 +935,46 @@
                 async generateMessage() {
                     this.loading = true;
                     try {
+                        // Normalize date to YYYY-MM-DD
+                        let date = this.messageDate;
+                        if (date instanceof Date) {
+                            date = date.toISOString().split('T')[0];
+                        }
+                        if (typeof date === 'string' && date.includes('/')) {
+                            // Convert from MM/DD/YYYY or DD/MM/YYYY to YYYY-MM-DD
+                            const parts = date.split('/');
+                            if (parts[2].length === 4) {
+                                // MM/DD/YYYY
+                                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                            }
+                        }
+                        const handler = response => {
+                            this.generatedMessage = response && response.message ? response.message : 'No message.';
+                            if (response && response.success) {
+                                this.showToast('Message generated successfully!', 'success');
+                            } else {
+                                this.showToast('Error generating message: ' + (response && response.error ? response.error : 'Unknown error'), 'error');
+                            }
+                            this.loading = false;
+                        };
+                        const failHandler = error => {
+                            this.generatedMessage = 'Failed to generate message.';
+                            this.showToast('Failed to generate message: ' + error, 'error');
+                            this.loading = false;
+                        };
                         if (this.messageType === 'driver') {
                             google.script.run
-                                .withSuccessHandler(response => {
-                                    if (response.success) {
-                                        this.generatedMessage = response.message;
-                                        this.showToast('Message generated successfully!', 'success');
-                                    } else {
-                                        this.showToast('Error generating message: ' + response.error, 'error');
-                                    }
-                                    this.loading = false;
-                                })
-                                .withFailureHandler(error => {
-                                    this.showToast('Failed to generate message: ' + error, 'error');
-                                    this.loading = false;
-                                })
-                                .generateDriverMessage(this.messageDate);
+                                .withSuccessHandler(handler)
+                                .withFailureHandler(failHandler)
+                                .generateDriverMessage(date);
                         } else {
                             google.script.run
-                                .withSuccessHandler(response => {
-                                    if (response.success) {
-                                        this.generatedMessage = response.message;
-                                        this.showToast('Message generated successfully!', 'success');
-                                    } else {
-                                        this.showToast('Error generating message: ' + response.error, 'error');
-                                    }
-                                    this.loading = false;
-                                })
-                                .withFailureHandler(error => {
-                                    this.showToast('Failed to generate message: ' + error, 'error');
-                                    this.loading = false;
-                                })
-                                .generateStaffMessage(this.messageDate);
+                                .withSuccessHandler(handler)
+                                .withFailureHandler(failHandler)
+                                .generateStaffMessage(date);
                         }
                     } catch (error) {
+                        this.generatedMessage = 'Error generating message.';
                         this.showToast('Error generating message: ' + error, 'error');
                         this.loading = false;
                     }
