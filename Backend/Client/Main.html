@@ -445,6 +445,7 @@
 
                     <!-- jQuery -->
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
                     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
                     <script src="https://cdn.datatables.net/plug-ins/1.10.12/sorting/datetime-moment.js"></script>
@@ -963,8 +964,10 @@
                     };
                     this.editingUserId = null;
                     this.showUserModal = true;
+                    this.$nextTick(() => this.initUserSelects());
                 },
 
+                // Populate modal with existing user data for editing
                 editUser(user) {
                     this.userModalTitle = 'Edit User';
                     this.userForm = {
@@ -978,10 +981,36 @@
                     };
                     this.editingUserId = user.ID;
                     this.showUserModal = true;
+                    this.$nextTick(() => this.initUserSelects());
+                },
+
+                // Initialize select2 dropdowns and sync selections with form state
+                initUserSelects() {
+                    const access = $('#accessBoatsSelect');
+                    access.off('change').select2({ width: '100%', placeholder: 'Select boats' });
+                    const boats = this.userForm.accessBoats ? this.userForm.accessBoats.split(',') : [];
+                    access.val(boats).trigger('change');
+                    access.on('change', () => {
+                        const val = access.val();
+                        this.userForm.accessBoats = val ? val.join(',') : '';
+                    });
+
+                    const perms = $('#permissionsSelect');
+                    perms.off('change').select2({ width: '100%', placeholder: 'Select permissions' });
+                    const permissions = this.userForm.permissions ? this.userForm.permissions.split(',') : [];
+                    perms.val(permissions).trigger('change');
+                    perms.on('change', () => {
+                        const val = perms.val();
+                        this.userForm.permissions = val ? val.join(',') : '';
+                    });
                 },
 
                 saveUser() {
                     this.loading = true;
+                    const accessVal = $('#accessBoatsSelect').val();
+                    const permVal = $('#permissionsSelect').val();
+                    this.userForm.accessBoats = accessVal ? accessVal.join(',') : '';
+                    this.userForm.permissions = permVal ? permVal.join(',') : '';
                     try {
                         if (this.editingUserId) {
                             google.script.run
