@@ -7,23 +7,6 @@
     <title>Boat Management System</title>
     <meta name="author" content="noushadBug">
     <meta name="description" content="Professional boat management system for tour operators">
-
-    <!-- Tailwind -->
-    <link href="https://fonts.googleapis.com/css2?family=Proxima+Nova&family=Veneer&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boat Management System</title>
-    <meta name="author" content="noushadBug">
-    <meta name="description" content="Professional boat management system for tour operators">
-
     <!-- Dependencies -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Proxima+Nova&family=Veneer&display=swap" rel="stylesheet">
@@ -114,6 +97,7 @@
                 init() {
                     this.checkSession();
                     this.setupLoginEnter();
+                    setTimeout(() => { this.loading = false; }, 800);
                 },
 
                 setupLoginEnter() {
@@ -132,27 +116,7 @@
 
 </head>
 
-<body x-data="dashboardApp()" x-init="() => { 
-        initializeDashboard();
-        setTimeout(() => loading = false, 800);
-        checkSession();
-    }" class="font-family-karla flex">
-
-    <script>
-        function initializeDashboard() {
-            // Initialize Alpine store
-            if (window.Alpine) {
-                window.Alpine.store('appStore', {
-                    isULoggedIn: false,
-                    user: null,
-                    dashboardView: true,
-                    bookingsView: false,
-                    messagesView: false,
-                    adminView: false
-                });
-            }
-        }
-    </script>
+<body x-data="dashboardApp()" x-init="init()" class="font-family-karla flex">
 
     <!-- Full-Screen Loading Animation -->
     <div x-show="loading" class="fixed inset-0 flex items-center justify-center bg-gray-800"
@@ -1449,10 +1413,6 @@
                 },
                 isAdmin() {
                     return this.hasPermission('all');
-                },
-                // On Alpine init
-                init() {
-                    this.checkSession();
                 },
             }
         }
