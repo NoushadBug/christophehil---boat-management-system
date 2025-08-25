@@ -657,12 +657,46 @@ function deleteBoat(requestingUser, id) {
 // Generate driver message for a given date, ensuring date normalization
 function generateDriverMessage(date) {
   try {
-    const bookings = getBookings();
+    console.log('Generating driver message for date:', date);
+    
+    // Normalize input date
+    let targetDate;
+    try {
+      if (typeof date === 'string') {
+        if (date.includes('/')) {
+          const [month, day, year] = date.split('/');
+          targetDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        } else {
+          targetDate = new Date(date).toISOString().split('T')[0];
+        }
+      } else {
+        targetDate = new Date(date).toISOString().split('T')[0];
+      }
+    } catch (e) {
+      console.error('Date normalization failed:', e);
+      return { success: false, error: 'Invalid date format' };
+    }
+    
+    console.log('Normalized target date:', targetDate);
+    
+    const bookings = getBookings(null); // Pass null to get all bookings
     if (!bookings.success) return { success: false, error: bookings.error };
+    
+    console.log('Total bookings found:', bookings.data.length);
 
     const dayBookings = bookings.data.filter(booking => {
-      const bookingDate = booking.Date instanceof Date ? booking.Date.toISOString().split('T')[0] : booking.Date;
-      return bookingDate === date && booking.Status !== 'Cancelled';
+      // Normalize the booking date for comparison
+      let bookingDate = booking.Date;
+      if (bookingDate instanceof Date) {
+        bookingDate = bookingDate.toISOString().split('T')[0];
+      } else if (typeof bookingDate === 'string') {
+        if (bookingDate.includes('/')) {
+          const [month, day, year] = bookingDate.split('/');
+          bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      }
+      console.log(`Comparing booking ${booking.BookingID}: ${bookingDate} with target: ${targetDate}`);
+      return bookingDate === targetDate && booking.Status !== 'Cancelled';
     });
 
     if (dayBookings.length === 0) {

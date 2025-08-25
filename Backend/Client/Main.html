@@ -15,7 +15,120 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boat Management System</title>
+    <meta name="author" content="noushadBug">
+    <meta name="description" content="Professional boat management system for tour operators">
+
+    <!-- Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Proxima+Nova&family=Veneer&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <?!= include('Backend/Client/Styles/Stylesheet'); ?>
+
+    <script>
+        // Initialize Alpine Store
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('appStore', {
+                isULoggedIn: false,
+                user: null,
+                dashboardView: true,
+                bookingsView: false,
+                messagesView: false,
+                adminView: false
+            });
+        });
+
+        // Main Dashboard Component
+        function dashboardApp() {
+            return {
+                // State
+                loading: true,
+                user: null,
+                bookings: [],
+                users: [],
+                boats: [],
+                drivers: [],
+                showBookingModal: false,
+                showAddUserModal: false,
+                showAddBoatModal: false,
+                bookingModalTitle: '',
+                userModalTitle: '',
+                boatModalTitle: '',
+                messageDate: new Date().toISOString().split('T')[0],
+                messageType: 'driver',
+                generatedMessage: '',
+
+                // Forms
+                bookingForm: {
+                    date: '',
+                    boat: '',
+                    tripType: '',
+                    status: '',
+                    clients: '',
+                    phone: '',
+                    adults: 0,
+                    children: 0,
+                    childAges: '',
+                    totalPax: 1,
+                    payment: '',
+                    paid: '',
+                    commission: '',
+                    partner: '',
+                    driver: '',
+                    hotel: '',
+                    transfer: '',
+                    transferTime: '',
+                    comments: ''
+                },
+                userForm: {
+                    name: '',
+                    email: '',
+                    password: '',
+                    role: 'Staff',
+                    accessBoats: '',
+                    permissions: 'view',
+                    phone: ''
+                },
+                boatForm: {
+                    name: '',
+                    color: '🛥️',
+                    maxCapacity: 12,
+                    managers: ''
+                },
+
+                // IDs for editing
+                editingBookingId: null,
+                editingUserId: null,
+                editingBoatId: null,
+
+                // Initialize
+                init() {
+                    this.checkSession();
+                    this.setupLoginEnter();
+                },
+
+                setupLoginEnter() {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const loginForm = document.querySelector('#loginForm');
+                        if (loginForm) {
+                            loginForm.addEventListener('keypress', (e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    this.login();
+                                }
+                            });
+                        }
+                    });
+                },
 
 </head>
 
@@ -50,7 +163,33 @@
     </div>
 
     <!-- login starts -->
-    <?!= include('Backend/Client/Login'); ?>
+    <div x-show="!$store.appStore.isULoggedIn" class="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+        <div class="relative py-3 sm:max-w-xl sm:mx-auto">
+            <div class="relative px-4 py-10 bg-white mx-8 md:mx-0 shadow rounded-3xl sm:p-10">
+                <div class="max-w-md mx-auto">
+                    <div class="divide-y divide-gray-200">
+                        <div class="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                            <form id="loginForm" @submit.prevent="login" class="space-y-4">
+                                <div class="relative">
+                                    <input type="email" required class="w-full border px-3 py-2 rounded" placeholder="Email" 
+                                           @keyup.enter="login">
+                                </div>
+                                <div class="relative">
+                                    <input type="password" required class="w-full border px-3 py-2 rounded" placeholder="Password"
+                                           @keyup.enter="login">
+                                </div>
+                                <div class="relative">
+                                    <button type="submit" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                        Login
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- login ends -->
 
     <aside x-transition x-show="$store.appStore.isULoggedIn"
@@ -829,20 +968,34 @@
 
                 async generateMessage() {
                     this.loading = true;
+                    this.generatedMessage = '';  // Clear previous message
+                    
                     try {
+                        // Ensure we have a valid date
+                        if (!this.messageDate) {
+                            this.showToast('Please select a date', 'error');
+                            this.loading = false;
+                            return;
+                        }
+
                         // Normalize date to YYYY-MM-DD
                         let date = this.messageDate;
+                        console.log('Original date:', date);
+                        
                         if (date instanceof Date) {
                             date = date.toISOString().split('T')[0];
-                        }
-                        if (typeof date === 'string' && date.includes('/')) {
-                            // Convert from MM/DD/YYYY or DD/MM/YYYY to YYYY-MM-DD
-                            const parts = date.split('/');
-                            if (parts[2].length === 4) {
-                                // MM/DD/YYYY
-                                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                        } else if (typeof date === 'string') {
+                            if (date.includes('/')) {
+                                const parts = date.split('/');
+                                // Handle both MM/DD/YYYY and DD/MM/YYYY formats
+                                if (parts[2] && parts[2].length === 4) {
+                                    date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                                }
                             }
+                            // If it's already in YYYY-MM-DD format, use as is
                         }
+                        
+                        console.log('Normalized date for message generation:', date);
                         const handler = response => {
                             this.generatedMessage = response && response.message ? response.message : 'No message.';
                             if (response && response.success) {
@@ -1203,13 +1356,27 @@
 
                 // Login function
                 login() {
-                    const email = document.querySelector('input[type=email]').value.trim();
-                    const password = document.querySelector('input[type=password]').value;
+                    const emailInput = document.querySelector('input[type=email]');
+                    const passwordInput = document.querySelector('input[type=password]');
+                    
+                    if (!emailInput || !passwordInput) {
+                        this.showToast('Login form not found', 'error');
+                        return;
+                    }
+
+                    const email = emailInput.value.trim();
+                    const password = passwordInput.value;
+
+                    if (!email || !password) {
+                        this.showToast('Please enter both email and password', 'error');
+                        return;
+                    }
+
                     this.loading = true;
                     try {
                         google.script.run
                             .withSuccessHandler(res => {
-                                if (res.success) {
+                                if (res && res.success) {
                                     this.user = res.user;
                                     this.$store.appStore.isULoggedIn = true;
                                     this.$store.appStore.user = res.user;
@@ -1223,7 +1390,7 @@
                                     this.loadData();
                                     this.showToast('Login successful!', 'success');
                                 } else {
-                                    this.showToast(res.error || 'Login failed', 'error');
+                                    this.showToast(res && res.error || 'Login failed', 'error');
                                 }
                                 this.loading = false;
                             })
@@ -1233,6 +1400,7 @@
                             })
                             .loginUser(email, password);
                     } catch (error) {
+                        console.error('Login error:', error);
                         this.showToast('Login error: ' + error, 'error');
                         this.loading = false;
                     }
