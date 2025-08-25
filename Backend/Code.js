@@ -549,7 +549,24 @@ function addBoat(requestingUser, boatData) {
     }
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
-    const boatId = 'BOAT-' + new Date().getTime();
+    
+    // Get the last boat number
+    const data = sheet.getDataRange().getValues();
+    let lastNumber = 0;
+    
+    if (data.length > 1) {  // If there are existing boats
+      for (let i = data.length - 1; i >= 1; i--) {
+        const id = String(data[i][0]); // First column is ID
+        if (id && id.startsWith('BOAT-')) {
+          const num = parseInt(id.split('-')[1]);
+          if (!isNaN(num) && num > lastNumber) {
+            lastNumber = num;
+          }
+        }
+      }
+    }
+    
+    const boatId = `BOAT-${lastNumber + 1}`;
     const newRow = [
       boatId,
       boatData.name,
