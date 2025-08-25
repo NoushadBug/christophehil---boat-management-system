@@ -79,9 +79,9 @@ function addQuickSampleData(ss) {
 
     // Sample users
     const users = [
-        ['1', 'Christophe', 'christophe@boatmanagement.com', 'password123', 'Admin', 'MAYA,PEARL,BELLA'],
-        ['2', 'Diana', 'diana@boatmanagement.com', 'password123', 'Staff', 'MAYA,PEARL,BELLA'],
-        ['3', 'James', 'james@boatmanagement.com', 'password123', 'Driver', 'MAYA']
+        ['1', 'Christophe', 'christophe@boatmanagement.com', 'YWJjMTIz', 'Admin', '*'],
+        ['2', 'Diana', 'diana@boatmanagement.com', 'YWJjMTIz', 'Staff', '*'],
+        ['3', 'James', 'james@boatmanagement.com', 'YWJjMTIz', 'Driver', '1,2']
     ];
 
     const usersSheet = ss.getSheetByName('Users');

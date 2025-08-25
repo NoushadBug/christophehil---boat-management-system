@@ -374,7 +374,7 @@ function addUser(userData) {
       userId,
       userData.name,
       userData.email,
-      userData.password || 'password123',
+      userData.password || 'YWJjMTIz', // Default base64 for 'abc123'
       userData.role || 'Staff',
       userData.accessBoats || '',
       'Yes', // IsActive

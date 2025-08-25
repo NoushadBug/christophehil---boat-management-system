@@ -162,7 +162,7 @@ Coming with James => 120k
 
 ## 🔐 Security Notes
 
-- Sample passwords are set to "password123" for demo purposes
+- Sample passwords are set to "password123" for each user
 - In production, implement proper password hashing
 - Consider using Google OAuth for authentication
 

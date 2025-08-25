@@ -311,11 +311,11 @@ function addSampleUsers(ss, now) {
     var sheet = ss.getSheetByName('Users');
     var defaultPassword = base64Encode('abc123');
     var users = [
-        ['1', 'Christophe', 'christophe@boatmanagement.com', defaultPassword, 'Admin', 'MAYA,PEARL,BELLA,SUNSET', 'all', '+255 123 456 789', 'Yes', now, now],
-        ['2', 'Diana', 'diana@boatmanagement.com', defaultPassword, 'Staff', 'MAYA,PEARL,BELLA,SUNSET', 'view,edit', '+255 987 654 321', 'Yes', now, now],
-        ['3', 'James', 'james@boatmanagement.com', defaultPassword, 'Driver', 'MAYA,SUNSET', 'view', '+255 555 123 456', 'Yes', now, now],
-        ['4', 'Juma', 'juma@boatmanagement.com', defaultPassword, 'Driver', 'PEARL,BELLA', 'view', '+255 777 888 999', 'Yes', now, now],
-        ['5', 'Momo', 'momo@boatmanagement.com', defaultPassword, 'Driver', 'MAYA,BELLA', 'view', '+255 111 222 333', 'Yes', now, now]
+        ['1', 'Christophe', 'christophe@boatmanagement.com', defaultPassword, 'Admin', '*T', 'all', '+255 123 456 789', 'Yes', now, now],
+        ['2', 'Diana', 'diana@boatmanagement.com', defaultPassword, 'Staff', '*', 'view,edit', '+255 987 654 321', 'Yes', now, now],
+        ['3', 'James', 'james@boatmanagement.com', defaultPassword, 'Driver', '1,2', 'view', '+255 555 123 456', 'Yes', now, now],
+        ['4', 'Juma', 'juma@boatmanagement.com', defaultPassword, 'Driver', '2,3', 'view', '+255 777 888 999', 'Yes', now, now],
+        ['5', 'Momo', 'momo@boatmanagement.com', defaultPassword, 'Driver', '1,3', 'view', '+255 111 222 333', 'Yes', now, now]
     ];
     if (users.length > 0) {
         sheet.getRange(2, 1, users.length, users[0].length).setValues(users);
