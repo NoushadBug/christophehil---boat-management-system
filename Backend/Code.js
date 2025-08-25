@@ -103,20 +103,28 @@ function clearSheetCache(sheetName) {
   CacheService.getScriptCache().remove('data_' + sheetName);
 }
 
-// Helper to check user permissions
-function isAuthorized(user, action, resource) {
+// Check if user has specific permission
+function hasPermission(user, permission) {
   if (!user || !user.Role) return false;
   if (user.Role === 'Admin') return true;
-  if (resource === 'boat' && user.AccessBoats) {
-    return user.AccessBoats.split(',').map(b => b.trim()).includes(action);
-  }
-  if (resource === 'booking' && user.AccessBoats) {
-    return user.AccessBoats.split(',').map(b => b.trim()).includes(action.Boat);
-  }
-  return false;
+  const perms = (user.Permissions || '').split(',').map(p => p.trim().toLowerCase());
+  return perms.includes('all') || perms.includes(permission.toLowerCase());
 }
 
-// Example: getBookings now requires user param and filters by permission
+// Map boat names to IDs
+function getBoatMap() {
+  const data = getSheetData(BOATS_SHEET);
+  const headers = data[0];
+  const nameIdx = headers.indexOf('Name');
+  const idIdx = headers.indexOf('ID');
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    map[data[i][nameIdx]] = String(data[i][idIdx]);
+  }
+  return map;
+}
+
+// Fetch bookings with permission filtering
 function getBookings(user) {
   try {
     const data = getSheetData(BOOKINGS_SHEET);
@@ -131,9 +139,13 @@ function getBookings(user) {
       });
       return booking;
     }).filter(booking => booking.IsArchived !== 'Yes');
-    // Filter bookings by user permission
     if (user && user.Role !== 'Admin') {
-      bookings = bookings.filter(b => isAuthorized(user, b.Boat, 'boat'));
+      if (!hasPermission(user, 'view')) {
+        return { success: false, error: 'Unauthorized' };
+      }
+      const allowed = (user.AccessBoats || '').split(',').map(id => id.trim());
+      const boatMap = getBoatMap();
+      bookings = bookings.filter(b => allowed.includes(boatMap[b.Boat]));
     }
     return { success: true, data: bookings };
   } catch (e) {
@@ -142,33 +154,36 @@ function getBookings(user) {
 }
 
 // Add new booking with enhanced structure
-function addBooking(bookingData) {
+function addBooking(user, bookingData) {
   try {
+    if (!hasPermission(user, 'edit')) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const boatMap = getBoatMap();
+    const boatId = boatMap[bookingData.boat];
+    const allowed = (user.AccessBoats || '').split(',').map(id => id.trim());
+    if (user.Role !== 'Admin' && !allowed.includes(boatId)) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
-
-    // Generate unique booking ID
     const bookingId = 'BOOK-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' +
       Math.random().toString(36).substr(2, 4).toUpperCase();
-
-    // Get trip color from TripTypes sheet
     const tripTypesSheet = ss.getSheetByName(TRIP_TYPES_SHEET);
     const tripTypesData = tripTypesSheet.getDataRange().getValues();
     const tripTypeRow = tripTypesData.find(row => row[0] === bookingData.tripType);
     const tripColorHex = tripTypeRow ? tripTypeRow[2] : '#6B7280';
-
     const newRow = [
       bookingId,
       bookingData.date,
       bookingData.boat || 'MAYA',
       bookingData.tripType,
       tripColorHex,
-      'Confirmed', // Default status
+      'Confirmed',
       bookingData.clients,
       bookingData.phone || '',
       bookingData.adults || 0,
@@ -184,11 +199,10 @@ function addBooking(bookingData) {
       bookingData.transfer || 'No',
       bookingData.transferTime || '',
       bookingData.comments || '',
-      'No', // IsArchived
+      'No',
       new Date().toISOString(),
       new Date().toISOString()
     ];
-
     sheet.appendRow(newRow);
     clearSheetCache(BOOKINGS_SHEET);
     return { success: true, id: bookingId };
@@ -197,32 +211,38 @@ function addBooking(bookingData) {
   }
 }
 
-// Update booking with enhanced structure
-function updateBooking(id, bookingData) {
+// Update booking with permission checks
+function updateBooking(user, id, bookingData) {
   try {
+    if (!hasPermission(user, 'edit')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const bookingIdIndex = headers.indexOf('BookingID');
-
+    const boatMap = getBoatMap();
     for (let i = 1; i < data.length; i++) {
       if (data[i][bookingIdIndex] === id) {
-        // Get trip color from TripTypes sheet
+        const boatName = bookingData.boat || data[i][2];
+        const boatId = boatMap[boatName];
+        const allowed = (user.AccessBoats || '').split(',').map(b => b.trim());
+        if (user.Role !== 'Admin' && !allowed.includes(boatId)) {
+          return { success: false, error: 'Unauthorized' };
+        }
         const tripTypesSheet = ss.getSheetByName(TRIP_TYPES_SHEET);
         const tripTypesData = tripTypesSheet.getDataRange().getValues();
         const tripTypeRow = tripTypesData.find(row => row[0] === bookingData.tripType);
         const tripColorHex = tripTypeRow ? tripTypeRow[2] : '#6B7280';
-
         const updatedRow = [
           id,
           bookingData.date,
-          bookingData.boat || 'MAYA',
+          boatName,
           bookingData.tripType,
           tripColorHex,
           bookingData.status || 'Confirmed',
@@ -241,11 +261,10 @@ function updateBooking(id, bookingData) {
           bookingData.transfer || 'No',
           bookingData.transferTime || '',
           bookingData.comments || '',
-          'No', // IsArchived
-          data[i][22], // Keep original createdAt
-          new Date().toISOString() // UpdatedAt
+          'No',
+          data[i][22],
+          new Date().toISOString()
         ];
-
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
         clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
@@ -258,23 +277,29 @@ function updateBooking(id, bookingData) {
 }
 
 // Delete booking (soft delete by setting IsArchived to Yes)
-function deleteBooking(id) {
+function deleteBooking(user, id) {
   try {
+    if (!hasPermission(user, 'edit')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const bookingIdIndex = headers.indexOf('BookingID');
     const isArchivedIndex = headers.indexOf('IsArchived');
-
+    const boatMap = getBoatMap();
     for (let i = 1; i < data.length; i++) {
       if (data[i][bookingIdIndex] === id) {
-        // Soft delete by setting IsArchived to Yes
+        const boatId = boatMap[data[i][2]];
+        const allowed = (user.AccessBoats || '').split(',').map(b => b.trim());
+        if (user.Role !== 'Admin' && !allowed.includes(boatId)) {
+          return { success: false, error: 'Unauthorized' };
+        }
         sheet.getRange(i + 1, isArchivedIndex + 1).setValue('Yes');
         clearSheetCache(BOOKINGS_SHEET);
         return { success: true };
@@ -287,23 +312,23 @@ function deleteBooking(id) {
 }
 
 // Get users with enhanced structure
-function getUsers() {
+function getUsers(user) {
   try {
+    if (!hasPermission(user, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     const data = getSheetData(USERS_SHEET);
-
     if (data.length <= 1) {
       return { success: true, data: [] };
     }
-
     const headers = data[0];
     const users = data.slice(1).map(row => {
-      const user = {};
+      const u = {};
       headers.forEach((header, index) => {
-        user[header] = row[index];
+        u[header] = row[index];
       });
-      return user;
-    }).filter(user => user.IsActive === 'Yes'); // Only active users
-
+      return u;
+    }).filter(u => u.IsActive === 'Yes');
     return { success: true, data: users };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -311,23 +336,27 @@ function getUsers() {
 }
 
 // Get boats with enhanced structure
-function getBoats() {
+function getBoats(user) {
   try {
     const data = getSheetData(BOATS_SHEET);
-
     if (data.length <= 1) {
       return { success: true, data: [] };
     }
-
     const headers = data[0];
-    const boats = data.slice(1).map(row => {
+    let boats = data.slice(1).map(row => {
       const boat = {};
       headers.forEach((header, index) => {
         boat[header] = row[index];
       });
       return boat;
-    }).filter(boat => boat.IsActive === 'Yes'); // Only active boats
-
+    }).filter(boat => boat.IsActive === 'Yes');
+    if (user && user.Role !== 'Admin') {
+      if (!hasPermission(user, 'view')) {
+        return { success: true, data: [] };
+      }
+      const allowed = (user.AccessBoats || '').split(',').map(id => id.trim());
+      boats = boats.filter(b => allowed.includes(String(b.ID)));
+    }
     return { success: true, data: boats };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -359,28 +388,37 @@ function getTripTypes() {
 }
 
 // Add user
-function addUser(userData) {
+function addUser(requestingUser, userData) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    if (!userData.password) {
+      return { success: false, error: 'Password required' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
-
-    const userId = 'USER-' + new Date().getTime();
+    const data = sheet.getDataRange().getValues();
+    const lastId = data.length > 1 ? Number(data[data.length - 1][0]) : 0;
+    const userId = lastId + 1;
+    const now = new Date().toISOString();
     const newRow = [
       userId,
       userData.name,
       userData.email,
-      userData.password || 'YWJjMTIz', // Default base64 for 'abc123'
+      userData.password,
       userData.role || 'Staff',
       userData.accessBoats || '',
-      'Yes', // IsActive
-      new Date().toISOString()
+      userData.permissions || '',
+      userData.phone || '',
+      'Yes',
+      '',
+      now
     ];
-
     sheet.appendRow(newRow);
     clearSheetCache(USERS_SHEET);
     return { success: true, id: userId };
@@ -390,32 +428,35 @@ function addUser(userData) {
 }
 
 // Update user
-function updateUser(id, userData) {
+function updateUser(requestingUser, id, userData) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const userIdIndex = headers.indexOf('ID');
-
     for (let i = 1; i < data.length; i++) {
       if (data[i][userIdIndex] === id) {
         const updatedRow = [
           id,
           userData.name,
           userData.email,
-          userData.password || data[i][3], // Keep existing password if not provided
-          userData.role || 'Staff',
-          userData.accessBoats || '',
-          'Yes', // IsActive
-          data[i][7] // Keep original createdAt
+          userData.password || data[i][3],
+          userData.role || data[i][4],
+          userData.accessBoats || data[i][5],
+          userData.permissions || data[i][6],
+          userData.phone || data[i][7],
+          data[i][8],
+          data[i][9],
+          data[i][10]
         ];
-
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
         clearSheetCache(USERS_SHEET);
         return { success: true };
@@ -428,20 +469,21 @@ function updateUser(id, userData) {
 }
 
 // Delete user (soft delete)
-function deleteUser(id) {
+function deleteUser(requestingUser, id) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const userIdIndex = headers.indexOf('ID');
     const isActiveIndex = headers.indexOf('IsActive');
-
     for (let i = 1; i < data.length; i++) {
       if (data[i][userIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
@@ -456,16 +498,17 @@ function deleteUser(id) {
 }
 
 // Add boat
-function addBoat(boatData) {
+function addBoat(requestingUser, boatData) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
-
     const boatId = 'BOAT-' + new Date().getTime();
     const newRow = [
       boatId,
@@ -473,10 +516,9 @@ function addBoat(boatData) {
       boatData.color || '🛥️',
       boatData.maxCapacity || 12,
       boatData.managers || '',
-      'Yes', // IsActive
+      'Yes',
       new Date().toISOString()
     ];
-
     sheet.appendRow(newRow);
     clearSheetCache(BOATS_SHEET);
     return { success: true, id: boatId };
@@ -486,19 +528,20 @@ function addBoat(boatData) {
 }
 
 // Update boat
-function updateBoat(id, boatData) {
+function updateBoat(requestingUser, id, boatData) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const boatIdIndex = headers.indexOf('ID');
-
     for (let i = 1; i < data.length; i++) {
       if (data[i][boatIdIndex] === id) {
         const updatedRow = [
@@ -507,10 +550,9 @@ function updateBoat(id, boatData) {
           boatData.color || '🛥️',
           boatData.maxCapacity || 12,
           boatData.managers || '',
-          'Yes', // IsActive
-          data[i][6] // Keep original createdAt
+          'Yes',
+          data[i][6]
         ];
-
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
         clearSheetCache(BOATS_SHEET);
         return { success: true };
@@ -523,20 +565,21 @@ function updateBoat(id, boatData) {
 }
 
 // Delete boat (soft delete)
-function deleteBoat(id) {
+function deleteBoat(requestingUser, id) {
   try {
+    if (!hasPermission(requestingUser, 'all')) {
+      return { success: false, error: 'Unauthorized' };
+    }
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
-
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const boatIdIndex = headers.indexOf('ID');
     const isActiveIndex = headers.indexOf('IsActive');
-
     for (let i = 1; i < data.length; i++) {
       if (data[i][boatIdIndex] === id) {
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
@@ -654,17 +697,24 @@ function loginUser(email, password) {
     const emailIdx = headers.indexOf('Email');
     const passwordIdx = headers.indexOf('Password');
     const isActiveIdx = headers.indexOf('IsActive');
-    const userRow = data.find((row, i) => i > 0 && row[emailIdx] === email && row[isActiveIdx] === 'Yes');
-    if (!userRow) {
+    const lastLoginIdx = headers.indexOf('LastLoginAt');
+    let userRowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][emailIdx] === email && data[i][isActiveIdx] === 'Yes') {
+        userRowIndex = i;
+        break;
+      }
+    }
+    if (userRowIndex === -1) {
       return { success: false, error: 'Invalid email or inactive user.' };
     }
-    // For demo: compare plaintext or base64
+    const userRow = data[userRowIndex];
     var inputPassword = password;
     var inputPasswordBase64 = Utilities.base64Encode(password);
     if (userRow[passwordIdx] !== inputPassword && userRow[passwordIdx] !== inputPasswordBase64) {
       return { success: false, error: 'Invalid password.' };
     }
-    // Return user info (excluding password)
+    sheet.getRange(userRowIndex + 1, lastLoginIdx + 1).setValue(new Date().toISOString());
     const user = {};
     headers.forEach((header, idx) => {
       if (header !== 'Password') user[header] = userRow[idx];
@@ -673,4 +723,4 @@ function loginUser(email, password) {
   } catch (e) {
     return { success: false, error: e.toString() };
   }
-} 
+}

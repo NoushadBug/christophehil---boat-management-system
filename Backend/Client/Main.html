@@ -47,14 +47,6 @@
             };
             return classes[status] || 'bg-gray-100 text-gray-800';
         };
-        window.canEditBooking = function (booking) {
-            // This assumes a global Alpine store for user and access
-            const user = Alpine.store('appStore').user;
-            if (!user) return false;
-            if (user.Role === 'Admin') return true;
-            if (!user.AccessBoats) return false;
-            return user.AccessBoats.split(',').map(b => b.trim()).includes(booking.Boat);
-        };
     </script>
 
     <!-- Full-Screen Loading Animation -->
@@ -384,6 +376,7 @@
                                         <th class="px-4 py-2">Email</th>
                                         <th class="px-4 py-2">Role</th>
                                         <th class="px-4 py-2">Access Boats</th>
+                                        <th class="px-4 py-2">Permissions</th>
                                         <th class="px-4 py-2">Actions</th>
                                     </tr>
                                 </thead>
@@ -394,6 +387,7 @@
                                             <td class="border px-4 py-2" x-text="user.Email"></td>
                                             <td class="border px-4 py-2" x-text="user.Role"></td>
                                             <td class="border px-4 py-2" x-text="user.AccessBoats"></td>
+                                            <td class="border px-4 py-2" x-text="user.Permissions"></td>
                                             <td class="border px-4 py-2">
                                                 <button @click="editUser(user)"
                                                     class="text-blue-600 hover:underline mr-2">
@@ -809,7 +803,7 @@
                                 this.showToast('Failed to load bookings: ' + error, 'error');
                                 this.loading = false;
                             })
-                            .getBookings();
+                            .getBookings(this.user);
 
                         google.script.run
                             .withSuccessHandler(result => {
@@ -817,7 +811,7 @@
                                     this.boats = result.data || [];
                                 }
                             })
-                            .getBoats();
+                            .getBoats(this.user);
 
                         google.script.run
                             .withSuccessHandler(result => {
@@ -825,7 +819,7 @@
                                     this.users = result.data || [];
                                 }
                             })
-                            .getUsers();
+                            .getUsers(this.user);
 
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');
@@ -984,7 +978,7 @@
                                     this.showToast('Error updating booking: ' + error, 'error');
                                     this.loading = false;
                                 })
-                                .updateBooking(this.editingBookingId, this.bookingForm);
+                                .updateBooking(this.user, this.editingBookingId, this.bookingForm);
                         } else {
                             google.script.run
                                 .withSuccessHandler(response => {
@@ -1001,7 +995,7 @@
                                     this.showToast('Error adding booking: ' + error, 'error');
                                     this.loading = false;
                                 })
-                                .addBooking(this.bookingForm);
+                                .addBooking(this.user, this.bookingForm);
                         }
                     } catch (error) {
                         this.showToast('Error saving booking: ' + error, 'error');
@@ -1028,7 +1022,7 @@
                                 this.showToast('Error deleting booking: ' + error, 'error');
                                 this.loading = false;
                             })
-                            .deleteBooking(id);
+                            .deleteBooking(this.user, id);
                     } catch (error) {
                         this.showToast('Error deleting booking: ' + error, 'error');
                         this.loading = false;
@@ -1180,11 +1174,6 @@
                 },
 
                 // User management functions
-                editUser(user) {
-                    // TODO: Implement user edit modal
-                    this.showToast('User edit functionality coming soon!', 'info');
-                },
-
                 removeUser(user) {
                     if (!confirm('Are you sure you want to remove this user?')) return;
 
@@ -1204,7 +1193,7 @@
                                 this.showToast('Error removing user: ' + error, 'error');
                                 this.loading = false;
                             })
-                            .deleteUser(user.ID);
+                            .deleteUser(this.user, user.ID);
                     } catch (error) {
                         this.showToast('Error removing user: ' + error, 'error');
                         this.loading = false;
@@ -1213,7 +1202,7 @@
 
                 openAddUserModal() {
                     this.userModalTitle = 'Add New User';
-                    this.userForm = { name: '', email: '', password: '', role: 'Staff', accessBoats: '' };
+                    this.userForm = { name: '', email: '', password: '', role: 'Staff', accessBoats: '', permissions: '', phone: '' };
                     this.editingUserId = null;
                     this.showAddUserModal = true;
                 },
@@ -1225,7 +1214,9 @@
                         email: user.Email,
                         password: '',
                         role: user.Role,
-                        accessBoats: user.AccessBoats
+                        accessBoats: user.AccessBoats,
+                        permissions: user.Permissions,
+                        phone: user.Phone
                     };
                     this.editingUserId = user.ID;
                     this.showAddUserModal = true;
@@ -1250,7 +1241,7 @@
                                     this.showToast('Error updating user: ' + err, 'error');
                                     this.loading = false;
                                 })
-                                .updateUser(this.editingUserId, this.userForm);
+                                .updateUser(this.user, this.editingUserId, this.userForm);
                         } else {
                             google.script.run
                                 .withSuccessHandler(res => {
@@ -1267,7 +1258,7 @@
                                     this.showToast('Error adding user: ' + err, 'error');
                                     this.loading = false;
                                 })
-                                .addUser(this.userForm);
+                                .addUser(this.user, this.userForm);
                         }
                     } catch (error) {
                         this.showToast('Error saving user: ' + error, 'error');
@@ -1314,7 +1305,7 @@
                                     this.showToast('Error updating boat: ' + err, 'error');
                                     this.loading = false;
                                 })
-                                .updateBoat(this.editingBoatId, this.boatForm);
+                                .updateBoat(this.user, this.editingBoatId, this.boatForm);
                         } else {
                             google.script.run
                                 .withSuccessHandler(res => {
@@ -1331,7 +1322,7 @@
                                     this.showToast('Error adding boat: ' + err, 'error');
                                     this.loading = false;
                                 })
-                                .addBoat(this.boatForm);
+                                .addBoat(this.user, this.boatForm);
                         }
                     } catch (error) {
                         this.showToast('Error saving boat: ' + error, 'error');
@@ -1358,7 +1349,7 @@
                                 this.showToast('Error removing boat: ' + error, 'error');
                                 this.loading = false;
                             })
-                            .deleteBoat(boat.ID);
+                            .deleteBoat(this.user, boat.ID);
                     } catch (error) {
                         this.showToast('Error removing boat: ' + error, 'error');
                         this.loading = false;
@@ -1422,20 +1413,29 @@
                     return false;
                 },
                 // Permission helpers
-                canViewBoat(boatName) {
+                hasPermission(action) {
                     if (!this.user) return false;
                     if (this.user.Role === 'Admin') return true;
-                    if (!this.user.AccessBoats) return false;
-                    return this.user.AccessBoats.split(',').map(b => b.trim()).includes(boatName);
+                    if (!this.user.Permissions) return false;
+                    const perms = this.user.Permissions.split(',').map(p => p.trim().toLowerCase());
+                    return perms.includes('all') || perms.includes(action.toLowerCase());
+                },
+                canViewBoat(boatName) {
+                    if (!this.hasPermission('view')) return false;
+                    const boat = this.boats.find(b => b.Name === boatName);
+                    if (!boat) return false;
+                    const allowed = this.user.AccessBoats ? this.user.AccessBoats.split(',').map(id => id.trim()) : [];
+                    return allowed.includes(String(boat.ID));
                 },
                 canEditBooking(booking) {
-                    if (!this.user) return false;
-                    if (this.user.Role === 'Admin') return true;
-                    if (!this.user.AccessBoats) return false;
-                    return this.user.AccessBoats.split(',').map(b => b.trim()).includes(booking.Boat);
+                    if (!this.hasPermission('edit')) return false;
+                    const boat = this.boats.find(b => b.Name === booking.Boat);
+                    if (!boat) return false;
+                    const allowed = this.user.AccessBoats ? this.user.AccessBoats.split(',').map(id => id.trim()) : [];
+                    return allowed.includes(String(boat.ID));
                 },
                 isAdmin() {
-                    return this.user && this.user.Role === 'Admin';
+                    return this.hasPermission('all');
                 },
                 // On Alpine init
                 init() {

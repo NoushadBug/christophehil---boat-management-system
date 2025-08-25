@@ -25,9 +25,17 @@
                     <option value="Driver">Driver</option>
                 </select>
             </div>
+            <div class="mb-4">
+                <label class="block mb-1 font-semibold">Access Boats (CSV of IDs)</label>
+                <input type="text" x-model="userForm.accessBoats" class="w-full border px-3 py-2 rounded" placeholder="1,2">
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1 font-semibold">Permissions (CSV)</label>
+                <input type="text" x-model="userForm.permissions" class="w-full border px-3 py-2 rounded" placeholder="view,edit">
+            </div>
             <div class="mb-6">
-                <label class="block mb-1 font-semibold">Access Boats (CSV)</label>
-                <input type="text" x-model="userForm.accessBoats" class="w-full border px-3 py-2 rounded" placeholder="MAYA,PEARL">
+                <label class="block mb-1 font-semibold">Phone</label>
+                <input type="text" x-model="userForm.phone" class="w-full border px-3 py-2 rounded" placeholder="+255 123 456 789">
             </div>
             <div class="flex justify-end gap-2">
                 <button type="button" @click="showAddUserModal = false" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
