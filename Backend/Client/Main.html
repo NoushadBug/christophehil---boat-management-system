@@ -566,7 +566,7 @@
                     }
                 },
 
-                /** Fetch bookings with single retry to avoid initial load error */
+                /** Fetch bookings with retry and resilient table rendering */
                 fetchBookings(retry = false) {
                     return new Promise(resolve => {
                         google.script.run
@@ -574,8 +574,13 @@
                                 if (result && result.success) {
                                     this.bookings = result.data || [];
                                     setTimeout(() => {
-                                        this.initializeDataTables();
-                                        resolve();
+                                        try {
+                                            this.initializeDataTables();
+                                        } catch (e) {
+                                            console.error('DataTables initialization failed', e);
+                                        } finally {
+                                            resolve();
+                                        }
                                     }, 100);
                                 } else if (!retry) {
                                     setTimeout(() => this.fetchBookings(true).then(resolve), 500);
@@ -602,9 +607,9 @@
                     });
                 },
 
+                /** Initialize or refresh DataTables with safety checks */
                 initializeDataTables() {
-                    // Initialize DataTables after data is loaded
-                    if ($.fn.DataTable) {
+                    if ($.fn && $.fn.DataTable) {
                         const tables = {
                             'bookingsTable': {
                                 config: {
@@ -664,17 +669,20 @@
                             }
                         };
 
-                        // Initialize or refresh each table if it exists
                         Object.entries(tables).forEach(([tableId, { config }]) => {
-                            const table = document.getElementById(tableId);
-                            if (table) {
-                                if ($.fn.DataTable.isDataTable('#' + tableId)) {
-                                    $('#' + tableId).DataTable().destroy();
+                            const $table = $('#' + tableId);
+                            if ($table.length) {
+                                if ($.fn.DataTable.isDataTable($table)) {
+                                    $table.DataTable().destroy();
                                 }
-                                $('#' + tableId).DataTable({
-                                    ...config,
-                                    data: this[tableId.replace('Table', 's')] || []
-                                });
+                                try {
+                                    $table.DataTable({
+                                        ...config,
+                                        data: this[tableId.replace('Table', 's')] || []
+                                    });
+                                } catch (e) {
+                                    console.error('Failed to init table ' + tableId, e);
+                                }
                             }
                         });
                     }
