@@ -529,36 +529,49 @@
 
                 // Methods
                 /** Load dashboard data */
+                /**
+                 * Load all core data and refresh tables once complete
+                 */
                 async loadData() {
                     this.loading = true;
-
                     try {
                         await this.fetchBookings();
 
-                        google.script.run
-                            .withSuccessHandler(result => {
-                                if (result && result.success) {
-                                    this.boats = result.data || [];
-                                }
-                            })
-                            .getBoats(this.user);
+                        const boatsPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success) {
+                                        this.boats = result.data || [];
+                                    }
+                                    resolve();
+                                })
+                                .getBoats(this.user);
+                        });
 
-                        google.script.run
-                            .withSuccessHandler(result => {
-                                if (result && result.success) {
-                                    this.users = result.data || [];
-                                }
-                            })
-                            .getUsers(this.user);
+                        const usersPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success) {
+                                        this.users = result.data || [];
+                                    }
+                                    resolve();
+                                })
+                                .getUsers(this.user);
+                        });
 
-                        google.script.run
-                            .withSuccessHandler(result => {
-                                if (result && result.success) {
-                                    this.drivers = result.data || [];
-                                }
-                            })
-                            .getDrivers();
+                        const driversPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success) {
+                                        this.drivers = result.data || [];
+                                    }
+                                    resolve();
+                                })
+                                .getDrivers();
+                        });
 
+                        await Promise.all([boatsPromise, usersPromise, driversPromise]);
+                        this.initializeDataTables();
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');
                     } finally {
@@ -566,22 +579,16 @@
                     }
                 },
 
-                /** Fetch bookings with retry and resilient table rendering */
+                /**
+                 * Fetch bookings with retry logic
+                 */
                 fetchBookings(retry = false) {
                     return new Promise(resolve => {
                         google.script.run
                             .withSuccessHandler(result => {
                                 if (result && result.success) {
                                     this.bookings = result.data || [];
-                                    setTimeout(() => {
-                                        try {
-                                            this.initializeDataTables();
-                                        } catch (e) {
-                                            console.error('DataTables initialization failed', e);
-                                        } finally {
-                                            resolve();
-                                        }
-                                    }, 100);
+                                    resolve();
                                 } else if (!retry) {
                                     setTimeout(() => this.fetchBookings(true).then(resolve), 500);
                                 } else {
