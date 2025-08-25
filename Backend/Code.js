@@ -468,10 +468,11 @@ function updateUser(requestingUser, id, userData) {
   }
 }
 
-// Delete user (soft delete)
+// Delete user (soft delete - requires admin)
 function deleteUser(requestingUser, id) {
   try {
-    if (!requestingUser || requestingUser.Role.toLowerCase() !== 'admin') {
+    var role = (requestingUser && requestingUser.Role) ? String(requestingUser.Role).toLowerCase().trim() : '';
+    if (role !== 'admin') {
       return { success: false, error: 'Unauthorized - Admin access required' };
     }
     
