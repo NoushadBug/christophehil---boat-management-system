@@ -103,10 +103,10 @@ function clearSheetCache(sheetName) {
   CacheService.getScriptCache().remove('data_' + sheetName);
 }
 
-// Check if user has specific permission
+// Check whether a user is authorized for a specific permission, treating the Admin role case-insensitively
 function hasPermission(user, permission) {
   if (!user || !user.Role) return false;
-  if (user.Role === 'Admin') return true;
+  if (String(user.Role).toLowerCase() === 'admin') return true;
   const perms = (user.Permissions || '').split(',').map(p => p.trim().toLowerCase());
   return perms.includes('all') || perms.includes(permission.toLowerCase());
 }
