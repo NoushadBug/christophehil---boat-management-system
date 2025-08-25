@@ -513,6 +513,7 @@ function deleteUser(requestingUser, id) {
 }
 
 // Add boat
+// Add a new boat record including color label and hex
 function addBoat(requestingUser, boatData) {
   try {
     if (!hasPermission(requestingUser, 'all')) {
@@ -528,9 +529,11 @@ function addBoat(requestingUser, boatData) {
     const newRow = [
       boatId,
       boatData.name,
-      boatData.color || '🛥️',
+      boatData.colorLabel || '🛥️',
+      boatData.colorHex || '#000000',
       boatData.maxCapacity || 12,
       boatData.managers || '',
+      boatData.tripTypesAllowed || '',
       'Yes',
       new Date().toISOString()
     ];
@@ -542,7 +545,7 @@ function addBoat(requestingUser, boatData) {
   }
 }
 
-// Update boat
+// Update boat details with color label and hex
 function updateBoat(requestingUser, id, boatData) {
   try {
     if (!hasPermission(requestingUser, 'all')) {
@@ -562,11 +565,13 @@ function updateBoat(requestingUser, id, boatData) {
         const updatedRow = [
           id,
           boatData.name,
-          boatData.color || '🛥️',
+          boatData.colorLabel || data[i][2],
+          boatData.colorHex || data[i][3],
           boatData.maxCapacity || 12,
           boatData.managers || '',
+          boatData.tripTypesAllowed || data[i][6],
           'Yes',
-          data[i][6]
+          data[i][8]
         ];
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
         clearSheetCache(BOATS_SHEET);
