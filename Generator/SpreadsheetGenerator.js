@@ -465,6 +465,10 @@ function addSampleActivityLogs(ss, now) {
     }
 }
 
+/**
+ * Auto-formats all sheets without adding borders to sample data
+ * @param {SpreadsheetApp} ss The spreadsheet instance
+ */
 function formatAllSheets(ss) {
     const sheets = ss.getSheets();
 
@@ -473,19 +477,12 @@ function formatAllSheets(ss) {
             const lastColumn = sheet.getLastColumn();
             const lastRow = sheet.getLastRow();
 
-            // Only format if there's data
             if (lastRow > 0 && lastColumn > 0) {
-                // Auto-resize columns (only if there are columns)
                 if (lastColumn > 0) {
                     sheet.autoResizeColumns(1, lastColumn);
                 }
 
-                // Add borders to data (only if there are multiple rows)
                 if (lastRow > 1) {
-                    const dataRange = sheet.getRange(1, 1, lastRow, lastColumn);
-                    dataRange.setBorder(true, true, true, true, true, true);
-
-                    // Set alternating row colors for better readability (skip header row)
                     for (let i = 2; i <= lastRow; i++) {
                         if (i % 2 === 0) {
                             sheet.getRange(i, 1, 1, lastColumn).setBackground('#f8f9fa');
