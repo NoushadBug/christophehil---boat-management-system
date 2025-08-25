@@ -654,13 +654,16 @@ function deleteBoat(requestingUser, id) {
   }
 }
 
-// Generate driver message with enhanced structure
+// Generate driver message for a given date, ensuring date normalization
 function generateDriverMessage(date) {
   try {
     const bookings = getBookings();
     if (!bookings.success) return { success: false, error: bookings.error };
 
-    const dayBookings = bookings.data.filter(booking => booking.Date === date && booking.Status !== 'Cancelled');
+    const dayBookings = bookings.data.filter(booking => {
+      const bookingDate = booking.Date instanceof Date ? booking.Date.toISOString().split('T')[0] : booking.Date;
+      return bookingDate === date && booking.Status !== 'Cancelled';
+    });
 
     if (dayBookings.length === 0) {
       return { success: true, message: 'No bookings found for this date.' };
@@ -683,13 +686,16 @@ function generateDriverMessage(date) {
   }
 }
 
-// Generate staff message with enhanced structure
+// Generate staff message for a given date, ensuring date normalization
 function generateStaffMessage(date) {
   try {
     const bookings = getBookings();
     if (!bookings.success) return { success: false, error: bookings.error };
 
-    const dayBookings = bookings.data.filter(booking => booking.Date === date && booking.Status !== 'Cancelled');
+    const dayBookings = bookings.data.filter(booking => {
+      const bookingDate = booking.Date instanceof Date ? booking.Date.toISOString().split('T')[0] : booking.Date;
+      return bookingDate === date && booking.Status !== 'Cancelled';
+    });
 
     if (dayBookings.length === 0) {
       return { success: true, message: 'No bookings found for this date.' };
