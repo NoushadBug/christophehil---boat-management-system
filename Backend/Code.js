@@ -496,7 +496,7 @@ function updateUser(requestingUser, id, userData) {
 function deleteUser(requestingUser, id) {
   try {
     var role = (requestingUser && requestingUser.Role) ? String(requestingUser.Role).toLowerCase().trim() : '';
-    if (role !== 'admin') {
+    if (role.toLocaleLowerCase() !== 'admin') {
       return { success: false, error: 'Unauthorized - Admin access required' };
     }
     
