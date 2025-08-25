@@ -528,32 +528,12 @@
                 editingBoatId: null,
 
                 // Methods
+                /** Load dashboard data */
                 async loadData() {
                     this.loading = true;
 
                     try {
-                        google.script.run
-                            .withSuccessHandler(result => {
-                                if (result && result.success) {
-                                    this.bookings = result.data || [];
-                                    setTimeout(() => {
-                                        this.initializeDataTables();
-                                        this.loading = false;
-                                    }, 100);
-                                } else {
-                                    let errorMsg = 'Unknown error';
-                                    if (result && result.error) {
-                                        errorMsg = result.error;
-                                    }
-                                    this.showToast('Error loading bookings: ' + errorMsg, 'error');
-                                    this.loading = false;
-                                }
-                            })
-                            .withFailureHandler(error => {
-                                this.showToast('Failed to load bookings: ' + error, 'error');
-                                this.loading = false;
-                            })
-                            .getBookings(this.user);
+                        await this.fetchBookings();
 
                         google.script.run
                             .withSuccessHandler(result => {
@@ -584,6 +564,42 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+
+                /** Fetch bookings with single retry to avoid initial load error */
+                fetchBookings(retry = false) {
+                    return new Promise(resolve => {
+                        google.script.run
+                            .withSuccessHandler(result => {
+                                if (result && result.success) {
+                                    this.bookings = result.data || [];
+                                    setTimeout(() => {
+                                        this.initializeDataTables();
+                                        resolve();
+                                    }, 100);
+                                } else if (!retry) {
+                                    setTimeout(() => this.fetchBookings(true).then(resolve), 500);
+                                } else {
+                                    let errorMsg = 'Unknown error';
+                                    if (typeof result === 'string') {
+                                        errorMsg = result;
+                                    } else if (result && result.error) {
+                                        errorMsg = result.error;
+                                    }
+                                    this.showToast('Error loading bookings: ' + errorMsg, 'error');
+                                    resolve();
+                                }
+                            })
+                            .withFailureHandler(error => {
+                                if (!retry) {
+                                    setTimeout(() => this.fetchBookings(true).then(resolve), 500);
+                                } else {
+                                    this.showToast('Failed to load bookings: ' + error, 'error');
+                                    resolve();
+                                }
+                            })
+                            .getBookings(this.user);
+                    });
                 },
 
                 initializeDataTables() {
