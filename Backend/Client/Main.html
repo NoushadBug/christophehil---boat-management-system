@@ -19,13 +19,11 @@
 
 </head>
 
-<body x-data="dashboardApp()" 
-    x-init="() => { 
+<body x-data="dashboardApp()" x-init="() => { 
         initializeDashboard();
         setTimeout(() => loading = false, 800);
         checkSession();
-    }"
-    class="font-family-karla flex">
+    }" class="font-family-karla flex">
 
     <script>
         function initializeDashboard() {
@@ -44,7 +42,8 @@
     </script>
 
     <!-- Full-Screen Loading Animation -->
-    <div x-show="loading" class="fixed inset-0 flex items-center justify-center bg-gray-800" style="z-index:200; opacity:0.7;">
+    <div x-show="loading" class="fixed inset-0 flex items-center justify-center bg-gray-800"
+        style="z-index:200; opacity:0.7;">
         <div class="flex items-center justify-center">
             <div class="w-16 h-16 border-t-4 border-b-4 border-white rounded-full animate-spin"></div>
         </div>
@@ -362,7 +361,13 @@
 
                     <div class="card p-6">
                         <div class="mb-6">
-                            <h3 class="font-semibold mb-2">Users</h3>
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-semibold mb-2">Users</h3>
+                                <button type="button" @click.prevent="openUserModal()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
+                                    <i class='bx bx-plus mr-2'></i> Add User
+                                </button>
+                            </div>
                             <table id="usersTable" class="min-w-full bg-gray-50 rounded mb-4">
                                 <thead>
                                     <tr>
@@ -395,14 +400,17 @@
                                     </template>
                                 </tbody>
                             </table>
-                            <button type="button" @click.prevent="openUserModal()"
-                                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
-                                <i class='bx bx-plus mr-2'></i> Add User
-                            </button>
+
                         </div>
 
                         <div>
-                            <h3 class="font-semibold mb-2">Boats</h3>
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-semibold mb-2">Boats</h3>
+                                <button type="button" @click.prevent="openBoatModal()"
+                                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
+                                    <i class='bx bx-plus mr-2'></i> Add Boat
+                                </button>
+                            </div>
                             <table id="boatsTable" class="min-w-full bg-gray-50 rounded mb-4">
                                 <thead>
                                     <tr>
@@ -431,10 +439,7 @@
                                     </template>
                                 </tbody>
                             </table>
-                            <button type="button" @click.prevent="openBoatModal()"
-                                class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center">
-                                <i class='bx bx-plus mr-2'></i> Add Boat
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -443,13 +448,13 @@
                 <?!= include('Backend/Client/Components/Modals/UserModal'); ?>
                 <?!= include('Backend/Client/Components/Modals/BoatModal'); ?>
 
-                    <!-- jQuery -->
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
-                    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
-                    <script src="https://cdn.datatables.net/plug-ins/1.10.12/sorting/datetime-moment.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+                <!-- jQuery -->
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+                <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
+                <script src="https://cdn.datatables.net/plug-ins/1.10.12/sorting/datetime-moment.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
             </main>
 
@@ -616,83 +621,85 @@
 
                 /** Initialize or refresh DataTables with safety checks */
                 initializeDataTables() {
-                    if ($.fn && $.fn.DataTable) {
-                        const tables = {
-                            'bookingsTable': {
-                                config: {
-                                    responsive: true,
-                                    pageLength: 10,
-                                    order: [[0, 'desc']],
-                                    columns: [
-                                        { data: 'Date', title: 'Date' },
-                                        { data: 'Boat', title: 'Boat' },
-                                        { data: 'TripType', title: 'Trip Type' },
-                                        { data: 'Clients', title: 'Clients' },
-                                        { data: 'TotalPAX', title: 'PAX' },
-                                        { data: 'Status', title: 'Status' }
-                                    ]
-                                }
-                            },
-                            'allBookingsTable': {
-                                config: {
-                                    responsive: true,
-                                    pageLength: 25,
-                                    order: [[1, 'desc']],
-                                    columns: [
-                                        { data: 'Date', title: 'Date' },
-                                        { data: 'Boat', title: 'Boat' },
-                                        { data: 'TripType', title: 'Trip Type' },
-                                        { data: 'Clients', title: 'Clients' },
-                                        { data: 'TotalPAX', title: 'PAX' },
-                                        { data: 'Status', title: 'Status' },
-                                        { data: 'Actions', title: 'Actions' }
-                                    ]
-                                }
-                            },
-                            'usersTable': {
-                                config: {
-                                    responsive: true,
-                                    pageLength: 10,
-                                    columns: [
-                                        { data: 'Name', title: 'Name' },
-                                        { data: 'Email', title: 'Email' },
-                                        { data: 'Role', title: 'Role' },
-                                        { data: 'AccessBoats', title: 'Access Boats' }
-                                    ]
-                                }
-                            },
-                            'boatsTable': {
-                                config: {
-                                    responsive: true,
-                                    pageLength: 10,
-                                    columns: [
-                                        { data: 'Name', title: 'Name' },
-                                        { data: 'ColorLabel', title: 'Label' },
-                                        { data: 'ColorHex', title: 'Color' },
-                                        { data: 'MaxCapacity', title: 'Max Capacity' },
-                                        { data: 'Managers', title: 'Managers' }
-                                    ]
-                                }
+                    if (!window.jQuery || !$.fn || !$.fn.DataTable) return;
+                    const tables = {
+                        'bookingsTable': {
+                            config: {
+                                responsive: true,
+                                pageLength: 10,
+                                order: [[0, 'desc']],
+                                columns: [
+                                    { data: 'Date', title: 'Date' },
+                                    { data: 'Boat', title: 'Boat' },
+                                    { data: 'TripType', title: 'Trip Type' },
+                                    { data: 'Clients', title: 'Clients' },
+                                    { data: 'TotalPAX', title: 'PAX' },
+                                    { data: 'Status', title: 'Status' }
+                                ]
                             }
-                        };
+                        },
+                        'allBookingsTable': {
+                            config: {
+                                responsive: true,
+                                pageLength: 25,
+                                order: [[1, 'desc']],
+                                columns: [
+                                    { data: 'Date', title: 'Date' },
+                                    { data: 'Boat', title: 'Boat' },
+                                    { data: 'TripType', title: 'Trip Type' },
+                                    { data: 'Clients', title: 'Clients' },
+                                    { data: 'TotalPAX', title: 'PAX' },
+                                    { data: 'Status', title: 'Status' },
+                                    { data: 'Actions', title: 'Actions' }
+                                ]
+                            }
+                        },
+                        'usersTable': {
+                            config: {
+                                responsive: true,
+                                pageLength: 10,
+                                columns: [
+                                    { data: 'Name', title: 'Name' },
+                                    { data: 'Email', title: 'Email' },
+                                    { data: 'Role', title: 'Role' },
+                                    { data: 'AccessBoats', title: 'Access Boats' }
+                                ]
+                            }
+                        },
+                        'boatsTable': {
+                            config: {
+                                responsive: true,
+                                pageLength: 10,
+                                columns: [
+                                    { data: 'Name', title: 'Name' },
+                                    { data: 'ColorLabel', title: 'Label' },
+                                    { data: 'ColorHex', title: 'Color' },
+                                    { data: 'MaxCapacity', title: 'Max Capacity' },
+                                    { data: 'Managers', title: 'Managers' }
+                                ]
+                            }
+                        }
+                    };
 
-                        Object.entries(tables).forEach(([tableId, { config }]) => {
-                            const $table = $('#' + tableId);
-                            if ($table.length) {
-                                if ($.fn.DataTable.isDataTable($table)) {
-                                    $table.DataTable().destroy();
-                                }
-                                try {
-                                    $table.DataTable({
-                                        ...config,
-                                        data: this[tableId.replace('Table', 's')] || []
-                                    });
-                                } catch (e) {
-                                    console.error('Failed to init table ' + tableId, e);
-                                }
+                    Object.entries(tables).forEach(([tableId, { config }]) => {
+                        const tableElem = document.getElementById(tableId);
+                        if (!tableElem || !tableElem.parentNode) return; // DOM safety check
+                        const $table = $(tableElem);
+                        if ($table.length) {
+                            if ($.fn.DataTable.isDataTable($table)) {
+                                $table.DataTable().destroy();
                             }
-                        });
-                    }
+                            try {
+                                $table.DataTable({
+                                    ...config,
+                                    data: this[tableId.replace('Table', 's')] || []
+                                });
+                            } catch (e) {
+                                console.error('Failed to init table ' + tableId, e);
+                            }
+                        }
+                    });
+                }
                 },
 
                 // Prepare and display booking modal for a new booking
