@@ -470,6 +470,7 @@
                 bookings: [],
                 users: [],
                 boats: [],
+                drivers: [],
                 loading: false,
                 user: null,
 
@@ -569,6 +570,14 @@
                                 }
                             })
                             .getUsers(this.user);
+
+                        google.script.run
+                            .withSuccessHandler(result => {
+                                if (result && result.success) {
+                                    this.drivers = result.data || [];
+                                }
+                            })
+                            .getDrivers();
 
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');

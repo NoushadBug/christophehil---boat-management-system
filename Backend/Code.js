@@ -387,6 +387,30 @@ function getTripTypes() {
   }
 }
 
+// Get drivers
+function getDrivers() {
+  try {
+    const data = getSheetData(DRIVERS_SHEET);
+
+    if (data.length <= 1) {
+      return { success: true, data: [] };
+    }
+
+    const headers = data[0];
+    const drivers = data.slice(1).map(row => {
+      const driver = {};
+      headers.forEach((header, index) => {
+        driver[header] = row[index];
+      });
+      return driver;
+    }).filter(driver => driver.IsActive === 'Yes');
+
+    return { success: true, data: drivers };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
 // Add user
 function addUser(requestingUser, userData) {
   try {
