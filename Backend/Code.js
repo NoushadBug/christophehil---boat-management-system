@@ -191,6 +191,7 @@ function addBooking(user, bookingData) {
       bookingData.childAges || '',
       bookingData.totalPax,
       bookingData.payment || '',
+      bookingData.currency || '',
       bookingData.paid || 'TBC',
       bookingData.commission || '',
       bookingData.partner || '',
@@ -253,6 +254,7 @@ function updateBooking(user, id, bookingData) {
           bookingData.childAges || '',
           bookingData.totalPax,
           bookingData.payment || '',
+          bookingData.currency || '',
           bookingData.paid || 'TBC',
           bookingData.commission || '',
           bookingData.partner || '',
@@ -262,7 +264,7 @@ function updateBooking(user, id, bookingData) {
           bookingData.transferTime || '',
           bookingData.comments || '',
           'No',
-          data[i][22],
+          data[i][23],
           new Date().toISOString()
         ];
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);

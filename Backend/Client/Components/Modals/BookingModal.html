@@ -91,7 +91,16 @@
 
                     <div>
                         <label class="block mb-1 font-semibold">Payment Amount</label>
-                        <input type="text" x-model="bookingForm.payment" class="w-full border px-3 py-2 rounded" placeholder="e.g., 480$">
+                        <input type="text" x-model="bookingForm.payment" class="w-full border px-3 py-2 rounded" placeholder="e.g., 480">
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 font-semibold">Currency</label>
+                        <select x-model="bookingForm.currency" class="w-full border px-3 py-2 rounded">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="TZS">TZS</option>
+                        </select>
                     </div>
 
                     <div>
@@ -105,7 +114,7 @@
 
                     <div>
                         <label class="block mb-1 font-semibold">Commission</label>
-                        <input type="text" x-model="bookingForm.commission" class="w-full border px-3 py-2 rounded" placeholder="e.g., 40€">
+                        <input type="text" x-model="bookingForm.commission" class="w-full border px-3 py-2 rounded" placeholder="e.g., 40">
                     </div>
 
                     <div>

@@ -61,7 +61,7 @@ function createBookingsSheet(ss) {
     const headers = [
         'BookingID', 'Date', 'Boat', 'TripType', 'TripColorHex', 'Status',
         'Clients', 'Phone', 'Adults', 'Children', 'ChildAges', 'TotalPAX',
-        'Payment', 'Paid', 'Commission', 'Partner', 'Driver', 'Hotel',
+        'Payment', 'Currency', 'Paid', 'Commission', 'Partner', 'Driver', 'Hotel',
         'Transfer', 'TransferTime', 'Comments', 'IsArchived', 'CreatedAt', 'UpdatedAt'
     ];
 
@@ -262,42 +262,42 @@ function addSampleBookings(ss, now) {
     const sampleBookings = [
         [
             'BOOK-20250805-0001', '2025-08-05', 'MAYA', 'Private', '#8B5CF6', 'Confirmed',
-            'Bella Vista', '+33 6 07 40 56 40', 7, 0, '', 7, '480$', 'TBC', '40€', 'Valentin', 'James', 'White Sand', 'Yes', '8:30',
+            'Bella Vista', '+33 6 07 40 56 40', 7, 0, '', 7, '480', 'USD', 'TBC', '40', 'Valentin', 'James', 'White Sand', 'Yes', '8:30',
             'Option for Sharlene until 31/07 morning 5 guests + 2 bodyguard', 'No', now, now
         ],
         [
             'BOOK-20250809-0001', '2025-08-09', 'PEARL', 'Shared', '#3B82F6', 'Confirmed',
-            'Aurélie', '+33 6 12 34 56 78', 2, 2, '10;11', 4, '170€', 'Paid', '20€', 'Nerea', 'Juma', 'Zan View', 'Yes', '8:30',
+            'Aurélie', '+33 6 12 34 56 78', 2, 2, '10;11', 4, '170', 'EUR', 'Paid', '20', 'Nerea', 'Juma', 'Zan View', 'Yes', '8:30',
             'Family with children', 'No', now, now
         ],
         [
             'BOOK-20250809-0002', '2025-08-09', 'PEARL', 'Shared', '#3B82F6', 'Confirmed',
-            'Amina et kaddour', '+33 6 98 76 54 32', 2, 0, '', 2, '150€', 'Paid', '15€', 'Nerea', 'Juma', 'Morroko Lounge', 'Yes', '9:15',
+            'Amina et kaddour', '+33 6 98 76 54 32', 2, 0, '', 2, '150', 'EUR', 'Paid', '15', 'Nerea', 'Juma', 'Morroko Lounge', 'Yes', '9:15',
             'Couple booking', 'No', now, now
         ],
         [
             'BOOK-20250810-0001', '2025-08-10', 'BELLA', 'Private', '#8B5CF6', 'Confirmed',
-            'Scott Busse', '+1 555 123 4567', 2, 0, '', 2, '320$', 'Paid', '32$', 'White Sand', 'Momo', 'Neptune Pwani', 'No', '',
+            'Scott Busse', '+1 555 123 4567', 2, 0, '', 2, '320', 'USD', 'Paid', '32', 'White Sand', 'Momo', 'Neptune Pwani', 'No', '',
             'Private sunset cruise', 'No', now, now
         ],
         [
             'BOOK-20250812-0001', '2025-08-12', 'MAYA', 'Sunset', '#F59E0B', 'Confirmed',
-            'German Family', '+49 30 123 4567', 4, 1, '8', 5, '400€', 'Paid', '40€', 'Be Zanzibar', 'Juma', 'Safaya Back', 'Yes', '17:30',
+            'German Family', '+49 30 123 4567', 4, 1, '8', 5, '400', 'EUR', 'Paid', '40', 'Be Zanzibar', 'Juma', 'Safaya Back', 'Yes', '17:30',
             'Sunset cruise with dinner', 'No', now, now
         ],
         [
             'BOOK-20250815-0001', '2025-08-15', 'PEARL', 'Shared', '#3B82F6', 'Confirmed',
-            'Manon and Maxime', '+33 6 11 22 33 44', 2, 0, '', 2, '0€', 'Not paying', '0€', 'Sonia - Moja Discovery', 'Jumah', 'Zan View', 'No', '',
+            'Manon and Maxime', '+33 6 11 22 33 44', 2, 0, '', 2, '0', 'EUR', 'Not paying', '0', 'Sonia - Moja Discovery', 'Jumah', 'Zan View', 'No', '',
             'Agency booking - commission only', 'No', now, now
         ],
         [
             'BOOK-20250818-0001', '2025-08-18', 'BELLA', 'Private', '#8B5CF6', 'Confirmed',
-            'Lara', '+33 6 99 88 77 66', 2, 0, '', 2, '0€', 'Not paying', '0€', 'Nerea', 'Jumah', 'Neptune Pwani', 'No', '',
+            'Lara', '+33 6 99 88 77 66', 2, 0, '', 2, '0', 'EUR', 'Not paying', '0', 'Nerea', 'Jumah', 'Neptune Pwani', 'No', '',
             'Nerea clients - no payment', 'No', now, now
         ],
         [
             'BOOK-20250820-0001', '2025-08-20', 'MAYA', 'DayOff', '#EF4444', 'Confirmed',
-            '', '', 0, 0, '', 0, '0€', '', '0€', '', '', '', 'No', '',
+            '', '', 0, 0, '', 0, '0', 'EUR', '', '0', '', '', '', 'No', '',
             'Boat maintenance day', 'No', now, now
         ]
     ];
