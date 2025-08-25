@@ -471,28 +471,42 @@ function updateUser(requestingUser, id, userData) {
 // Delete user (soft delete)
 function deleteUser(requestingUser, id) {
   try {
-    if (!hasPermission(requestingUser, 'all')) {
-      return { success: false, error: 'Unauthorized' };
+    if (!requestingUser || requestingUser.Role.toLowerCase() !== 'admin') {
+      return { success: false, error: 'Unauthorized - Admin access required' };
     }
+    
     var sheetId = getSheetIdFromProperties();
     if (!sheetId) {
       initializeSpreadsheet();
     }
+    
     const ss = SpreadsheetApp.openById(sheetId);
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const userIdIndex = headers.indexOf('ID');
     const isActiveIndex = headers.indexOf('IsActive');
+    
+    // Convert id to string for comparison
+    const searchId = String(id);
+    let userFound = false;
+    
     for (let i = 1; i < data.length; i++) {
-      if (data[i][userIdIndex] === id) {
+      if (String(data[i][userIdIndex]) === searchId) {
+        userFound = true;
         sheet.getRange(i + 1, isActiveIndex + 1).setValue('No');
         clearSheetCache(USERS_SHEET);
         return { success: true };
       }
     }
-    return { success: false, error: 'User not found' };
+    
+    if (!userFound) {
+      return { success: false, error: 'User not found' };
+    }
+    
+    return { success: true };
   } catch (e) {
+    console.error('Error in deleteUser:', e);
     return { success: false, error: e.toString() };
   }
 }

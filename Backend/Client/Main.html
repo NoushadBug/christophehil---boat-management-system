@@ -19,34 +19,28 @@
 
 </head>
 
-<body x-data="dashboardApp()" x-init="setTimeout(() => loading = false, 800)"
+<body x-data="dashboardApp()" 
+    x-init="() => { 
+        initializeDashboard();
+        setTimeout(() => loading = false, 800);
+        checkSession();
+    }"
     class="font-family-karla flex">
 
     <script>
-        // Expose Alpine component methods globally for template includes or context leaks
-        window.formatDate = function (dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            return date.toLocaleDateString();
-        };
-        window.getTripBadgeClass = function (tripType) {
-            const classes = {
-                'Private': 'bg-purple-100 text-purple-800',
-                'Shared': 'bg-blue-100 text-blue-800',
-                'Sunset': 'bg-orange-100 text-orange-800',
-                'DayOff': 'bg-red-100 text-red-800',
-                'Day Off': 'bg-red-100 text-red-800'
-            };
-            return classes[tripType] || 'bg-gray-100 text-gray-800';
-        };
-        window.getStatusBadgeClass = function (status) {
-            const classes = {
-                'Confirmed': 'bg-green-100 text-green-800',
-                'Pending': 'bg-yellow-100 text-yellow-800',
-                'Cancelled': 'bg-red-100 text-red-800'
-            };
-            return classes[status] || 'bg-gray-100 text-gray-800';
-        };
+        function initializeDashboard() {
+            // Initialize Alpine store
+            if (window.Alpine) {
+                window.Alpine.store('appStore', {
+                    isULoggedIn: false,
+                    user: null,
+                    dashboardView: true,
+                    bookingsView: false,
+                    messagesView: false,
+                    adminView: false
+                });
+            }
+        }
     </script>
 
     <!-- Full-Screen Loading Animation -->
@@ -795,7 +789,11 @@
                                         this.loading = false;
                                     }, 100);
                                 } else {
-                                    this.showToast('Error loading bookings: ' + (result.error || 'Unknown error'), 'error');
+                                    let errorMsg = 'Unknown error';
+                                    if (result && result.error) {
+                                        errorMsg = result.error;
+                                    }
+                                    this.showToast('Error loading bookings: ' + errorMsg, 'error');
                                     this.loading = false;
                                 }
                             })
@@ -1185,7 +1183,7 @@
                                     this.showToast('User removed successfully!', 'success');
                                     this.loadData();
                                 } else {
-                                    this.showToast('Error removing user: ' + response.error, 'error');
+                                    this.showToast('Error removing user: ' + (response.error || 'Unknown error'), 'error');
                                 }
                                 this.loading = false;
                             })
@@ -1193,7 +1191,7 @@
                                 this.showToast('Error removing user: ' + error, 'error');
                                 this.loading = false;
                             })
-                            .deleteUser(this.user, user.ID);
+                            .deleteUser(this.user, String(user.ID)); // Convert ID to string
                     } catch (error) {
                         this.showToast('Error removing user: ' + error, 'error');
                         this.loading = false;
@@ -1201,8 +1199,17 @@
                 },
 
                 openAddUserModal() {
+                    console.log('Opening user modal');
                     this.userModalTitle = 'Add New User';
-                    this.userForm = { name: '', email: '', password: '', role: 'Staff', accessBoats: '', permissions: '', phone: '' };
+                    this.userForm = { 
+                        name: '', 
+                        email: '', 
+                        password: '', 
+                        role: 'Staff', 
+                        accessBoats: '', 
+                        permissions: 'view', 
+                        phone: '' 
+                    };
                     this.editingUserId = null;
                     this.showAddUserModal = true;
                 },
@@ -1268,8 +1275,14 @@
 
                 // Boat management functions
                 openAddBoatModal() {
+                    console.log('Opening boat modal');
                     this.boatModalTitle = 'Add New Boat';
-                    this.boatForm = { name: '', color: '🛥️', maxCapacity: 12, managers: '' };
+                    this.boatForm = { 
+                        name: '', 
+                        color: '🛥️', 
+                        maxCapacity: 12, 
+                        managers: '' 
+                    };
                     this.editingBoatId = null;
                     this.showAddBoatModal = true;
                 },
@@ -1443,18 +1456,6 @@
                 },
             }
         }
-
-        // Alpine.js store
-        document.addEventListener('alpine:init', () => {
-            Alpine.store('appStore', {
-                isULoggedIn: false,
-                user: null,
-                dashboardView: true,
-                bookingsView: false,
-                messagesView: false,
-                adminView: false
-            });
-        });
     </script>
 
 </body>

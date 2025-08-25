@@ -1,5 +1,5 @@
-<div>
-    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+<div id="dashboard-content">
+    <table class="datatable min-w-full bg-white rounded shadow overflow-hidden">
         <thead>
             <tr>
                 <th class="px-4 py-2">Date</th>
@@ -10,16 +10,21 @@
                 <!-- Add more columns as needed -->
             </tr>
         </thead>
-        <tbody>
+        <tbody x-show="bookings && bookings.length">
             <template x-for="row in bookings" :key="row.id">
                 <tr :class="row.tripColor">
-                    <td class="border px-4 py-2" x-text="row.date"></td>
+                    <td class="border px-4 py-2" x-text="formatDate(row.date)"></td>
                     <td class="border px-4 py-2 font-bold" x-text="row.tripType"></td>
                     <td class="border px-4 py-2" x-text="row.clients"></td>
                     <td class="border px-4 py-2 text-center font-semibold" x-text="row.totalPax"></td>
                     <td class="border px-4 py-2" x-text="row.comments"></td>
                 </tr>
             </template>
+        </tbody>
+        <tbody x-show="!bookings || !bookings.length">
+            <tr>
+                <td colspan="5" class="text-center py-4">No bookings available</td>
+            </tr>
         </tbody>
     </table>
 </div>
