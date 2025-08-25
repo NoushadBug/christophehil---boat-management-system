@@ -114,6 +114,25 @@ function clearSheetCache(sheetName) {
   CacheService.getScriptCache().remove('data_' + sheetName);
 }
 
+/**
+ * Convert various date inputs into YYYY-MM-DD.
+ * @param {Date|string} date input date
+ * @return {string} normalized date
+ */
+function normalizeDate_(date) {
+  if (date instanceof Date) {
+    return date.toISOString().slice(0, 10);
+  }
+  if (typeof date === 'string') {
+    if (date.includes('/')) {
+      const parts = date.split('/');
+      return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+    }
+    return new Date(date).toISOString().slice(0, 10);
+  }
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 // Check whether a user is authorized for a specific permission, treating the Admin role case-insensitively
 function hasPermission(user, permission) {
   if (!user || !user.Role) return false;
@@ -305,6 +324,60 @@ function deleteBooking(user, id) {
       }
     }
     return { success: false, error: 'Booking not found' };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Aggregate totals per boat for a given day.
+ * @param {Date|string} date day to summarize
+ * @return {{success:boolean,data:Object[]}} per-boat totals
+ */
+function getBoatDaySummary(date) {
+  try {
+    const target = normalizeDate_(date);
+    const bookings = getBookings(null);
+    if (!bookings.success) return bookings;
+    const map = {};
+    bookings.data.forEach(b => {
+      if (normalizeDate_(b.Date) !== target || b.Status === 'Cancelled') return;
+      if (!map[b.Boat]) {
+        map[b.Boat] = { boat: b.Boat, tripType: b.TripType, adults: 0, children: 0, totalPax: 0 };
+      }
+      map[b.Boat].adults += parseInt(b.Adults) || 0;
+      map[b.Boat].children += parseInt(b.Children) || 0;
+      map[b.Boat].totalPax += parseInt(b.TotalPAX) || 0;
+    });
+    return { success: true, data: Object.values(map) };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Compute overall metrics within a date range.
+ * @param {Date|string} start start date
+ * @param {Date|string} end end date
+ * @return {{success:boolean,metrics:Object}} summary metrics
+ */
+function getDashboardSummary(start, end) {
+  try {
+    const s = normalizeDate_(start);
+    const e = normalizeDate_(end);
+    const bookings = getBookings(null);
+    if (!bookings.success) return bookings;
+    let totalBookings = 0;
+    let totalPax = 0;
+    const boats = new Set();
+    bookings.data.forEach(b => {
+      const d = normalizeDate_(b.Date);
+      if (d < s || d > e || b.Status === 'Cancelled') return;
+      totalBookings++;
+      totalPax += parseInt(b.TotalPAX) || 0;
+      boats.add(b.Boat);
+    });
+    return { success: true, metrics: { totalBookings, totalPax, activeBoats: boats.size } };
   } catch (e) {
     return { success: false, error: e.toString() };
   }
@@ -631,48 +704,11 @@ function deleteBoat(requestingUser, id) {
 // Generate driver message for a given date, ensuring date normalization
 function generateDriverMessage(date) {
   try {
-    console.log('Generating driver message for date:', date);
-    
-    // Normalize input date
-    let targetDate;
-    try {
-      if (typeof date === 'string') {
-        if (date.includes('/')) {
-          const [month, day, year] = date.split('/');
-          targetDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        } else {
-          targetDate = new Date(date).toISOString().split('T')[0];
-        }
-      } else {
-        targetDate = new Date(date).toISOString().split('T')[0];
-      }
-    } catch (e) {
-      console.error('Date normalization failed:', e);
-      return { success: false, error: 'Invalid date format' };
-    }
-    
-    console.log('Normalized target date:', targetDate);
-    
-    const bookings = getBookings(null); // Pass null to get all bookings
+    const targetDate = normalizeDate_(date);
+    const bookings = getBookings(null);
     if (!bookings.success) return { success: false, error: bookings.error };
+    const dayBookings = bookings.data.filter(b => normalizeDate_(b.Date) === targetDate && b.Status !== 'Cancelled');
     
-    console.log('Total bookings found:', bookings.data.length);
-
-    const dayBookings = bookings.data.filter(booking => {
-      // Normalize the booking date for comparison
-      let bookingDate = booking.Date;
-      if (bookingDate instanceof Date) {
-        bookingDate = bookingDate.toISOString().split('T')[0];
-      } else if (typeof bookingDate === 'string') {
-        if (bookingDate.includes('/')) {
-          const [month, day, year] = bookingDate.split('/');
-          bookingDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-      }
-      console.log(`Comparing booking ${booking.BookingID}: ${bookingDate} with target: ${targetDate}`);
-      return bookingDate === targetDate && booking.Status !== 'Cancelled';
-    });
-
     if (dayBookings.length === 0) {
       return { success: true, message: 'No bookings found for this date.' };
     }
@@ -697,19 +733,15 @@ function generateDriverMessage(date) {
 // Generate staff message for a given date, ensuring date normalization
 function generateStaffMessage(date) {
   try {
-    const bookings = getBookings();
+    const targetDate = normalizeDate_(date);
+    const bookings = getBookings(null);
     if (!bookings.success) return { success: false, error: bookings.error };
-
-    const dayBookings = bookings.data.filter(booking => {
-      const bookingDate = booking.Date instanceof Date ? booking.Date.toISOString().split('T')[0] : booking.Date;
-      return bookingDate === date && booking.Status !== 'Cancelled';
-    });
+    const dayBookings = bookings.data.filter(b => normalizeDate_(b.Date) === targetDate && b.Status !== 'Cancelled');
 
     if (dayBookings.length === 0) {
       return { success: true, message: 'No bookings found for this date.' };
     }
 
-    // Group bookings by boat
     const bookingsByBoat = {};
     dayBookings.forEach(booking => {
       if (!bookingsByBoat[booking.Boat]) {
@@ -723,7 +755,7 @@ function generateStaffMessage(date) {
     const boatNameIdx = boatHeaders.indexOf('Name');
     const colorIdx = boatHeaders.indexOf('ColorLabel');
 
-    let message = `Hello Diana,\n\nTomorrow ${date} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
+    let message = `Hello Diana,\n\nTomorrow ${targetDate} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
 
     Object.keys(bookingsByBoat).forEach(boatName => {
       const boatBookings = bookingsByBoat[boatName];
