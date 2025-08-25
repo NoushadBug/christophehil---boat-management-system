@@ -519,7 +519,8 @@
                 editingUserId: null,
                 boatForm: {
                     name: '',
-                    color: '🛥️',
+                    colorLabel: '🛥️',
+                    colorHex: '#000000',
                     maxCapacity: 12,
                     managers: ''
                 },
@@ -629,7 +630,8 @@
                                     pageLength: 10,
                                     columns: [
                                         { data: 'Name', title: 'Name' },
-                                        { data: 'Color', title: 'Color' },
+                                        { data: 'ColorLabel', title: 'Label' },
+                                        { data: 'ColorHex', title: 'Color' },
                                         { data: 'MaxCapacity', title: 'Max Capacity' },
                                         { data: 'Managers', title: 'Managers' }
                                     ]
@@ -1060,7 +1062,8 @@
                     this.boatModalTitle = 'Add New Boat';
                     this.boatForm = {
                         name: '',
-                        color: '🛥️',
+                        colorLabel: '🛥️',
+                        colorHex: '#000000',
                         maxCapacity: 12,
                         managers: ''
                     };
@@ -1072,7 +1075,8 @@
                     this.boatModalTitle = 'Edit Boat';
                     this.boatForm = {
                         name: boat.Name,
-                        color: boat.Color,
+                        colorLabel: boat.ColorLabel,
+                        colorHex: boat.ColorHex,
                         maxCapacity: parseInt(boat.MaxCapacity) || 12,
                         managers: boat.Managers
                     };
