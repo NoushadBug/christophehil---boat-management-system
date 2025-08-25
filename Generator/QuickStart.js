@@ -91,9 +91,9 @@ function addQuickSampleData(ss) {
 
     // Sample boats
     const boats = [
-        ['BOAT-1756115171591', 'MAYA', '💛 Yellow', 12, 'James,Momo'],
-        ['BOAT-1756115171592', 'PEARL', '🧡 Orange', 14, 'Juma'],
-        ['BOAT-1756115171593', 'BELLA', '🩵 Blue', 8, 'Jumah,Momo']
+        ['BOAT-1', 'MAYA', '💛 Yellow', 12, 'James,Momo'],
+        ['BOAT-2', 'PEARL', '🧡 Orange', 14, 'Juma'],
+        ['BOAT-3', 'BELLA', '🩵 Blue', 8, 'Jumah,Momo']
     ];
 
     const boatsSheet = ss.getSheetByName('Boats');
