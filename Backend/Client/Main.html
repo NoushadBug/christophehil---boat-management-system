@@ -791,39 +791,17 @@
                 async loadData() {
                     this.loading = true;
 
-                    // Show loading state in tables
-                    ['bookingsTable', 'allBookingsTable', 'usersTable'].forEach(tableId => {
-                        const table = document.getElementById(tableId);
-                        if (table) {
-                            const tbody = table.querySelector('tbody');
-                            if (tbody) {
-                                tbody.innerHTML = `
-                                    <tr>
-                                        <td colspan="100%" class="text-center py-8">
-                                            <div class="flex items-center justify-center">
-                                                <div class="w-8 h-8 border-t-2 border-b-2 border-blue-500 rounded-full animate-spin"></div>
-                                                <span class="ml-2">Loading data...</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                            }
-                        }
-                    });
-
                     try {
-                        // Load bookings
                         google.script.run
                             .withSuccessHandler(result => {
-                                if (result.success) {
+                                if (result && result.success) {
                                     this.bookings = result.data || [];
-                                    // Wait for Alpine to update the DOM
                                     setTimeout(() => {
                                         this.initializeDataTables();
                                         this.loading = false;
                                     }, 100);
                                 } else {
-                                    this.showToast('Error loading bookings: ' + result.error, 'error');
+                                    this.showToast('Error loading bookings: ' + (result.error || 'Unknown error'), 'error');
                                     this.loading = false;
                                 }
                             })
@@ -833,19 +811,17 @@
                             })
                             .getBookings();
 
-                        // Load boats
                         google.script.run
                             .withSuccessHandler(result => {
-                                if (result.success) {
+                                if (result && result.success) {
                                     this.boats = result.data || [];
                                 }
                             })
                             .getBoats();
 
-                        // Load users
                         google.script.run
                             .withSuccessHandler(result => {
-                                if (result.success) {
+                                if (result && result.success) {
                                     this.users = result.data || [];
                                 }
                             })
@@ -861,40 +837,76 @@
                 initializeDataTables() {
                     // Initialize DataTables after data is loaded
                     if ($.fn.DataTable) {
-                        if ($.fn.DataTable.isDataTable('#bookingsTable')) {
-                            $('#bookingsTable').DataTable().destroy();
-                        }
-                        if ($.fn.DataTable.isDataTable('#allBookingsTable')) {
-                            $('#allBookingsTable').DataTable().destroy();
-                        }
-                        if ($.fn.DataTable.isDataTable('#usersTable')) {
-                            $('#usersTable').DataTable().destroy();
-                        }
-                        if ($.fn.DataTable.isDataTable('#boatsTable')) {
-                            $('#boatsTable').DataTable().destroy();
-                        }
+                        const tables = {
+                            'bookingsTable': {
+                                config: {
+                                    responsive: true,
+                                    pageLength: 10,
+                                    order: [[0, 'desc']],
+                                    columns: [
+                                        { data: 'Date', title: 'Date' },
+                                        { data: 'Boat', title: 'Boat' },
+                                        { data: 'TripType', title: 'Trip Type' },
+                                        { data: 'Clients', title: 'Clients' },
+                                        { data: 'TotalPAX', title: 'PAX' },
+                                        { data: 'Status', title: 'Status' }
+                                    ]
+                                }
+                            },
+                            'allBookingsTable': {
+                                config: {
+                                    responsive: true,
+                                    pageLength: 25,
+                                    order: [[1, 'desc']],
+                                    columns: [
+                                        { data: 'Date', title: 'Date' },
+                                        { data: 'Boat', title: 'Boat' },
+                                        { data: 'TripType', title: 'Trip Type' },
+                                        { data: 'Clients', title: 'Clients' },
+                                        { data: 'TotalPAX', title: 'PAX' },
+                                        { data: 'Status', title: 'Status' },
+                                        { data: 'Actions', title: 'Actions' }
+                                    ]
+                                }
+                            },
+                            'usersTable': {
+                                config: {
+                                    responsive: true,
+                                    pageLength: 10,
+                                    columns: [
+                                        { data: 'Name', title: 'Name' },
+                                        { data: 'Email', title: 'Email' },
+                                        { data: 'Role', title: 'Role' },
+                                        { data: 'AccessBoats', title: 'Access Boats' }
+                                    ]
+                                }
+                            },
+                            'boatsTable': {
+                                config: {
+                                    responsive: true,
+                                    pageLength: 10,
+                                    columns: [
+                                        { data: 'Name', title: 'Name' },
+                                        { data: 'Color', title: 'Color' },
+                                        { data: 'MaxCapacity', title: 'Max Capacity' },
+                                        { data: 'Managers', title: 'Managers' }
+                                    ]
+                                }
+                            }
+                        };
 
-                        // Initialize new DataTables
-                        $('#bookingsTable').DataTable({
-                            responsive: true,
-                            pageLength: 10,
-                            order: [[0, 'desc']]
-                        });
-
-                        $('#allBookingsTable').DataTable({
-                            responsive: true,
-                            pageLength: 25,
-                            order: [[1, 'desc']]
-                        });
-
-                        $('#usersTable').DataTable({
-                            responsive: true,
-                            pageLength: 10
-                        });
-
-                        $('#boatsTable').DataTable({
-                            responsive: true,
-                            pageLength: 10
+                        // Initialize or refresh each table if it exists
+                        Object.entries(tables).forEach(([tableId, { config }]) => {
+                            const table = document.getElementById(tableId);
+                            if (table) {
+                                if ($.fn.DataTable.isDataTable('#' + tableId)) {
+                                    $('#' + tableId).DataTable().destroy();
+                                }
+                                $('#' + tableId).DataTable({
+                                    ...config,
+                                    data: this[tableId.replace('Table', 's')] || []
+                                });
+                            }
                         });
                     }
                 },
