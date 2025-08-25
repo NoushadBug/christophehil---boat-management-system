@@ -68,18 +68,31 @@ const SETTINGS_SHEET = 'Settings';
 const DRIVERS_SHEET = 'Drivers';
 const PARTNERS_SHEET = 'Partners';
 
+// Cached spreadsheet reference
+let _spreadsheet = null;
+
+/**
+ * Obtain the main spreadsheet, creating it if missing. The instance is cached
+ * in memory to avoid repeated `openById` calls during a single execution.
+ * @return {GoogleAppsScript.Spreadsheet.Spreadsheet} Boat Management spreadsheet
+ */
+function getSpreadsheet() {
+  if (_spreadsheet) return _spreadsheet;
+  let sheetId = getSheetIdFromProperties();
+  if (sheetId) {
+    _spreadsheet = SpreadsheetApp.openById(sheetId);
+  } else {
+    _spreadsheet = SpreadsheetApp.create('Boat Management System');
+    sheetId = _spreadsheet.getId();
+    PropertiesService.getScriptProperties().setProperty('BOAT_MGMT_SHEET_ID', sheetId);
+  }
+  return _spreadsheet;
+}
+
 // Initialize spreadsheet if not exists
 function initializeSpreadsheet() {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      // Create new spreadsheet
-      const ss = SpreadsheetApp.create('Boat Management System');
-      sheetId = ss.getId();
-      PropertiesService.getScriptProperties().setProperty('BOAT_MGMT_SHEET_ID', sheetId);
-    }
-
-    return SpreadsheetApp.openById(sheetId);
+    return getSpreadsheet();
   } catch (e) {
     console.error('Error initializing spreadsheet:', e);
     throw e;
@@ -92,9 +105,7 @@ function getSheetData(sheetName) {
   const key = 'data_' + sheetName;
   const cached = cache.get(key);
   if (cached) return JSON.parse(cached);
-  const sheetId = getSheetIdFromProperties() || initializeSpreadsheet().getId();
-  const ss = SpreadsheetApp.openById(sheetId);
-  const data = ss.getSheetByName(sheetName).getDataRange().getValues();
+  const data = getSpreadsheet().getSheetByName(sheetName).getDataRange().getValues();
   cache.put(key, JSON.stringify(data), 60);
   return data;
 }
@@ -165,11 +176,7 @@ function addBooking(user, bookingData) {
     if (user.Role !== 'Admin' && !allowed.includes(boatId)) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const bookingId = 'BOOK-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' +
       Math.random().toString(36).substr(2, 4).toUpperCase();
@@ -217,11 +224,7 @@ function updateBooking(user, id, bookingData) {
     if (!hasPermission(user, 'edit')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -282,11 +285,7 @@ function deleteBooking(user, id) {
     if (!hasPermission(user, 'edit')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOOKINGS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -420,11 +419,7 @@ function addUser(requestingUser, userData) {
     if (!userData.password) {
       return { success: false, error: 'Password required' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const lastId = data.length > 1 ? Number(data[data.length - 1][0]) : 0;
@@ -457,11 +452,7 @@ function updateUser(requestingUser, id, userData) {
     if (!hasPermission(requestingUser, 'all')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -500,12 +491,7 @@ function deleteUser(requestingUser, id) {
       return { success: false, error: 'Unauthorized - Admin access required' };
     }
     
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -543,11 +529,7 @@ function addBoat(requestingUser, boatData) {
     if (!hasPermission(requestingUser, 'all')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
     
     // Get the last boat number
@@ -592,11 +574,7 @@ function updateBoat(requestingUser, id, boatData) {
     if (!hasPermission(requestingUser, 'all')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -631,11 +609,7 @@ function deleteBoat(requestingUser, id) {
     if (!hasPermission(requestingUser, 'all')) {
       return { success: false, error: 'Unauthorized' };
     }
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(BOATS_SHEET);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -744,18 +718,18 @@ function generateStaffMessage(date) {
       bookingsByBoat[booking.Boat].push(booking);
     });
 
+    const boatsData = getSheetData(BOATS_SHEET);
+    const boatHeaders = boatsData[0];
+    const boatNameIdx = boatHeaders.indexOf('Name');
+    const colorIdx = boatHeaders.indexOf('ColorLabel');
+
     let message = `Hello Diana,\n\nTomorrow ${date} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
 
-    Object.keys(bookingsByBoat).forEach((boatName, boatIndex) => {
+    Object.keys(bookingsByBoat).forEach(boatName => {
       const boatBookings = bookingsByBoat[boatName];
       const totalPax = boatBookings.reduce((sum, booking) => sum + (parseInt(booking.TotalPAX) || 0), 0);
-
-      // Get boat color from Boats sheet
-      const ss = SpreadsheetApp.openById(getSheetIdFromProperties());
-      const boatsSheet = ss.getSheetByName(BOATS_SHEET);
-      const boatsData = boatsSheet.getDataRange().getValues();
-      const boatRow = boatsData.find(row => row[1] === boatName);
-      const boatColor = boatRow ? boatRow[2] : '🛥️';
+      const boatRow = boatsData.find(row => row[boatNameIdx] === boatName);
+      const boatColor = boatRow ? boatRow[colorIdx] : '🛥️';
 
       message += `${boatName} ${boatColor}\n`;
       message += `${boatBookings[0].TripType} – ${totalPax} adults\n`;
@@ -784,11 +758,7 @@ function generateStaffMessage(date) {
 // User login/authentication
 function loginUser(email, password) {
   try {
-    var sheetId = getSheetIdFromProperties();
-    if (!sheetId) {
-      initializeSpreadsheet();
-    }
-    const ss = SpreadsheetApp.openById(sheetId);
+    const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(USERS_SHEET);
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) {
