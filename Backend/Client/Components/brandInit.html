@@ -26,12 +26,8 @@
     } finally { done(); }
   }
 
-  var timeout = setTimeout(done, 900); // fail-safe to avoid long loader
-  function done(){
-    clearTimeout(timeout);
-    var l = document.getElementById('globalLoader');
-    if (l) l.style.display = 'none';
-  }
+  // Let app logic control any global loader visibility
+  function done(){ /* no-op: Alpine handles loader visibility */ }
 
   // If settings already fetched elsewhere, apply immediately and also on DOM ready
   if (window.__BM_SETTINGS) {

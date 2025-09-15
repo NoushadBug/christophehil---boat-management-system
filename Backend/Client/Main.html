@@ -25,8 +25,8 @@
 
 <body x-data="dashboardApp()" x-init="() => { 
         initializeDashboard();
-        setTimeout(() => loading = false, 800);
-        checkSession();
+        // Keep loader until session is checked and data loaded
+        if (!checkSession()) { loading = false; }
     }" class="font-family-karla flex">
 
     <script>
@@ -48,10 +48,11 @@
     <?!= include('Backend/Client/Components/brandInit'); ?>
 
     <!-- Full-Screen Loading Animation -->
-    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-800"
-        style="z-index:200; opacity:0.7;">
-        <div class="flex items-center justify-center">
+    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-900/75 backdrop-blur-sm"
+        style="z-index:200;">
+        <div class="flex flex-col items-center justify-center text-white gap-3">
             <div class="w-16 h-16 border-t-4 border-b-4 border-white rounded-full animate-spin"></div>
+            <div class="text-sm opacity-90 animate-pulse">Loading...</div>
         </div>
     </div>
 
@@ -471,7 +472,7 @@
                 users: [],
                 boats: [],
                 drivers: [],
-                loading: false,
+                loading: true,
                 user: null,
 
                 // UI State
