@@ -207,24 +207,26 @@
                             <h2 class="text-lg font-semibold text-gray-800">Boat Summary</h2>
                         </div>
                         <div class="p-6 overflow-x-auto">
-                            <table id="summaryTable" class="w-full">
+                            <table id="summaryTable" class="w-full table-fixed">
                                 <thead>
-                                    <tr>
-                                        <th>Boat</th>
-                                        <th>Trip Type</th>
-                                        <th>Adults</th>
-                                        <th>Children</th>
-                                        <th>Total PAX</th>
+                                    <tr class="text-left">
+                                        <th class="w-2/12 px-3 py-2">Boat</th>
+                                        <th class="w-3/12 px-3 py-2">Trip Type</th>
+                                        <th class="w-2/12 px-3 py-2">Booking Date</th>
+                                        <th class="w-1/12 px-3 py-2 text-right">Adults</th>
+                                        <th class="w-1/12 px-3 py-2 text-right">Children</th>
+                                        <th class="w-1/12 px-3 py-2 text-right">Total PAX</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="item in getBoatSummary()" :key="item.Boat">
-                                        <tr>
-                                            <td x-text="item.Boat"></td>
-                                            <td x-text="item.TripType"></td>
-                                            <td x-text="item.Adults"></td>
-                                            <td x-text="item.Children"></td>
-                                            <td x-text="item.TotalPAX"></td>
+                                    <template x-for="item in getBoatSummary()" :key="item.Boat + '-' + (item.Date||'')">
+                                        <tr class="align-middle">
+                                            <td class="px-3 py-2" x-text="item.Boat"></td>
+                                            <td class="px-3 py-2" x-text="item.TripType"></td>
+                                            <td class="px-3 py-2" x-text="formatDate(item.Date)"></td>
+                                            <td class="px-3 py-2 text-right" x-text="item.Adults"></td>
+                                            <td class="px-3 py-2 text-right" x-text="item.Children"></td>
+                                            <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -919,25 +921,34 @@
                     return new Set(this.filteredBookings().map(b => b.Boat)).size;
                 },
 
-                /** Aggregates booking details per boat for summary table */
+                /** Aggregates booking details per boat and earliest booking date for summary */
                 getBoatSummary() {
                     const map = {};
                     this.filteredBookings().forEach(b => {
-                        if (!map[b.Boat]) {
-                            map[b.Boat] = { Boat: b.Boat, TripTypes: new Set(), Adults: 0, Children: 0, TotalPAX: 0 };
+                        const key = b.Boat || 'Unknown';
+                        if (!map[key]) {
+                            map[key] = { Boat: key, TripTypes: new Set(), Adults: 0, Children: 0, TotalPAX: 0, Dates: [] };
                         }
-                        map[b.Boat].TripTypes.add(b.TripType);
-                        map[b.Boat].Adults += parseInt(b.Adults) || 0;
-                        map[b.Boat].Children += parseInt(b.Children) || 0;
-                        map[b.Boat].TotalPAX += parseInt(b.TotalPAX) || 0;
+                        map[key].TripTypes.add(b.TripType);
+                        map[key].Adults += parseInt(b.Adults) || 0;
+                        map[key].Children += parseInt(b.Children) || 0;
+                        map[key].TotalPAX += parseInt(b.TotalPAX) || 0;
+                        if (b.Date) map[key].Dates.push(b.Date);
                     });
-                    return Object.values(map).map(m => ({
-                        Boat: m.Boat,
-                        TripType: Array.from(m.TripTypes).join(', '),
-                        Adults: m.Adults,
-                        Children: m.Children,
-                        TotalPAX: m.TotalPAX
-                    }));
+                    return Object.values(map).map(m => {
+                        let date = '';
+                        if (m.Dates.length) {
+                            date = m.Dates.sort()[0]; // earliest booking date for that boat in range
+                        }
+                        return {
+                            Boat: m.Boat,
+                            TripType: Array.from(m.TripTypes).join(', '),
+                            Date: date,
+                            Adults: m.Adults,
+                            Children: m.Children,
+                            TotalPAX: m.TotalPAX
+                        };
+                    });
                 },
 
                 // Utility methods
