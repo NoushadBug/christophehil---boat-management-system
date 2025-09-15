@@ -59,7 +59,7 @@
         class="relative bg-sidebar h-screen w-64 sm:block hidden shadow-xl">
         <div class="p-6">
             <a href="#0" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">
-                <img id="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
+                <img class="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
             </a>
             <button @click="openAddBookingModal()"
                 class="w-full bg-white cta-btn font-semibold py-2 mt-5 rounded-lg rounded-lg rounded-lg shadow-lg hover:shadow-xl hover:text-white hover:bg-blue-800 flex items-center justify-center">
@@ -105,7 +105,7 @@
         <!-- Desktop Header -->
         <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
             <div class="w-1/2 flex items-center gap-3">
-                <img id="companyLogo" class="w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
+                <img class="companyLogo w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
                 <h1 id="companyName" class="text-2xl font-bold text-gray-800">Boat Management System</h1>
             </div>
             <div x-data="{ isOpen: false }" class="relative w-1/2 flex justify-end">
@@ -128,7 +128,7 @@
         <header x-data="{ isOpen: false }" class="mobile-header w-full bg-sidebar py-5 px-6 sm:hidden">
             <div class="flex items-center justify-between">
                 <a href="#0" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">
-                    <img id="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
+                    <img class="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
                 </a>
                 <button @click="isOpen = !isOpen" class="bg-transparent text-white text-3xl focus:outline-none">
                     <i x-show="!isOpen" class='bx bx-menu'></i>

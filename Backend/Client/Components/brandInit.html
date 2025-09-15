@@ -5,11 +5,7 @@
   window.__BM_BRAND_APPLIED = true;
   var targets = {
     titleEl: document.getElementById('companyName') || document.getElementById('loginTitle'),
-    logoEls: [
-      document.getElementById('companyLogo'),
-      document.getElementById('sidebarLogo'),
-      document.getElementById('loginLogo')
-    ].filter(Boolean),
+    logoEls: Array.prototype.slice.call(document.querySelectorAll('.companyLogo, #sidebarLogo, #loginLogo')),
     loader: document.getElementById('globalLoader')
   };
 
@@ -40,4 +36,3 @@
   } catch(e) { done(); }
 })();
 </script>
-
