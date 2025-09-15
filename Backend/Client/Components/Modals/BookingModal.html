@@ -24,10 +24,9 @@
                         <label class="block mb-1 font-semibold">Boat</label>
                         <select x-model="bookingForm.boat" class="w-full border px-3 py-2 rounded" required>
                             <option value="">Select boat</option>
-                            <option value="MAYA">MAYA</option>
-                            <option value="PEARL">PEARL</option>
-                            <option value="BELLA">BELLA</option>
-                            <option value="SUNSET">SUNSET</option>
+                            <template x-for="b in boats" :key="b.ID">
+                                <option :value="b.Name" x-text="b.Name"></option>
+                            </template>
                         </select>
                     </div>
 
@@ -35,10 +34,9 @@
                         <label class="block mb-1 font-semibold">Trip Type</label>
                         <select x-model="bookingForm.tripType" class="w-full border px-3 py-2 rounded" required>
                             <option value="">Select type</option>
-                            <option value="Private">Private</option>
-                            <option value="Shared">Shared</option>
-                            <option value="Sunset">Sunset</option>
-                            <option value="DayOff">Day Off</option>
+                            <template x-for="t in tripTypes" :key="t">
+                                <option :value="t" x-text="t"></option>
+                            </template>
                         </select>
                     </div>
 
@@ -119,7 +117,12 @@
 
                     <div>
                         <label class="block mb-1 font-semibold">Partner</label>
-                        <input type="text" x-model="bookingForm.partner" class="w-full border px-3 py-2 rounded" placeholder="e.g., Nerea">
+                        <input list="partnersList" type="text" x-model="bookingForm.partner" class="w-full border px-3 py-2 rounded" placeholder="e.g., Nerea">
+                        <datalist id="partnersList">
+                            <template x-for="p in partners" :key="p.ID || p.Name">
+                                <option :value="p.Name"></option>
+                            </template>
+                        </datalist>
                     </div>
                 </div>
 

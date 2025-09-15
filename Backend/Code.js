@@ -68,6 +68,30 @@ const SETTINGS_SHEET = 'Settings';
 const DRIVERS_SHEET = 'Drivers';
 const PARTNERS_SHEET = 'Partners';
 
+// Read key/value settings from Settings sheet
+function getSettings() {
+  try {
+    const data = getSheetData(SETTINGS_SHEET);
+    if (data.length <= 1) {
+      return { success: true, data: {} };
+    }
+    const headers = data[0];
+    const keyIdx = headers.indexOf('Key');
+    const valIdx = headers.indexOf('Value');
+    const map = {};
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row || row.length === 0) continue;
+      const k = row[keyIdx];
+      const v = row[valIdx];
+      if (k) map[String(k)] = v;
+    }
+    return { success: true, data: map };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
 // Initialize spreadsheet if not exists
 function initializeSpreadsheet() {
   try {
@@ -206,6 +230,46 @@ function addBooking(user, bookingData) {
     ];
     sheet.appendRow(newRow);
     clearSheetCache(BOOKINGS_SHEET);
+
+    // If a partner name is supplied and not present in Partners sheet, auto-create a basic partner row
+    try {
+      if (bookingData.partner && String(bookingData.partner).trim()) {
+        const partnersData = getSheetData(PARTNERS_SHEET);
+        if (partnersData && partnersData.length > 0) {
+          const pHeaders = partnersData[0];
+          const nameIdx = pHeaders.indexOf('Name');
+          const idIdx = pHeaders.indexOf('ID');
+          const isActiveIdx = pHeaders.indexOf('IsActive');
+          const exists = partnersData.slice(1).some(r => (r[nameIdx] || '').toString().trim().toLowerCase() === bookingData.partner.toString().trim().toLowerCase());
+          if (!exists) {
+            const ss2 = SpreadsheetApp.openById(sheetId);
+            const pSheet = ss2.getSheetByName(PARTNERS_SHEET);
+            // Compute next numeric ID (string ok)
+            let nextId = 1;
+            if (partnersData.length > 1) {
+              const ids = partnersData.slice(1).map(r => r[idIdx]).filter(Boolean).map(x => parseInt(String(x).replace(/[^0-9]/g, ''), 10)).filter(n => !isNaN(n));
+              if (ids.length > 0) nextId = Math.max.apply(null, ids) + 1;
+            }
+            const partnerRow = [
+              String(nextId), // ID
+              bookingData.partner, // Name
+              '', // CommissionRate
+              'amount', // CommissionType: default manual amount
+              'bank_transfer', // PayoutMethod default
+              '', // ContactEmail
+              '', // Notes
+              'Yes', // IsActive
+              new Date().toISOString() // CreatedAt
+            ];
+            pSheet.appendRow(partnerRow);
+            clearSheetCache(PARTNERS_SHEET);
+          }
+        }
+      }
+    } catch (inner) {
+      // don't block booking creation if partner auto-create fails
+      console.warn('Partner auto-create failed: ' + inner);
+    }
     return { success: true, id: bookingId };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -269,6 +333,35 @@ function updateBooking(user, id, bookingData) {
         ];
         sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
         clearSheetCache(BOOKINGS_SHEET);
+
+        // Attempt to auto-create partner if missing
+        try {
+          if (bookingData.partner && String(bookingData.partner).trim()) {
+            const partnersData = getSheetData(PARTNERS_SHEET);
+            if (partnersData && partnersData.length > 0) {
+              const pHeaders = partnersData[0];
+              const nameIdx = pHeaders.indexOf('Name');
+              const idIdx = pHeaders.indexOf('ID');
+              const exists = partnersData.slice(1).some(r => (r[nameIdx] || '').toString().trim().toLowerCase() === bookingData.partner.toString().trim().toLowerCase());
+              if (!exists) {
+                const ss2 = SpreadsheetApp.openById(sheetId);
+                const pSheet = ss2.getSheetByName(PARTNERS_SHEET);
+                let nextId = 1;
+                if (partnersData.length > 1) {
+                  const ids = partnersData.slice(1).map(r => r[idIdx]).filter(Boolean).map(x => parseInt(String(x).replace(/[^0-9]/g, ''), 10)).filter(n => !isNaN(n));
+                  if (ids.length > 0) nextId = Math.max.apply(null, ids) + 1;
+                }
+                const partnerRow = [
+                  String(nextId), bookingData.partner, '', 'amount', 'bank_transfer', '', '', 'Yes', new Date().toISOString()
+                ];
+                pSheet.appendRow(partnerRow);
+                clearSheetCache(PARTNERS_SHEET);
+              }
+            }
+          }
+        } catch (inner) {
+          console.warn('Partner auto-create failed: ' + inner);
+        }
         return { success: true };
       }
     }
@@ -706,7 +799,7 @@ function generateStaffMessage(date) {
       bookingsByBoat[booking.Boat].push(booking);
     });
 
-    let message = `Hello Diana,\n\nTomorrow ${date} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
+    let message = `Hello Diana,\n\n${date} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
 
     Object.keys(bookingsByBoat).forEach((boatName, boatIndex) => {
       const boatBookings = bookingsByBoat[boatName];
@@ -720,24 +813,75 @@ function generateStaffMessage(date) {
       const boatColor = boatRow ? boatRow[2] : '🛥️';
 
       message += `${boatName} ${boatColor}\n`;
-      message += `${boatBookings[0].TripType} – ${totalPax} adults\n`;
+      const totalAdults = boatBookings.reduce((sum, b) => sum + (parseInt(b.Adults) || 0), 0);
+      const totalChildren = boatBookings.reduce((sum, b) => sum + (parseInt(b.Children) || 0), 0);
+      const tripTypes = Array.from(new Set(boatBookings.map(b => b.TripType))).join(', ');
+      message += `${tripTypes} – ${totalAdults} adults${totalChildren ? `, ${totalChildren} kids` : ''} (total ${totalPax})\n`;
       message += `Meeting at 8:30 AM\n\n`;
 
       boatBookings.forEach(booking => {
         message += `➡️ ${booking.Clients}\n`;
-        message += `${booking.TotalPAX} adults`;
+        const adults = parseInt(booking.Adults) || 0;
+        const children = parseInt(booking.Children) || 0;
+        message += `${adults} adults${children ? `, ${children} kids` : ''}`;
         if (booking.Partner) {
           message += ` – ${booking.Partner}'s clients`;
         }
         message += `\n`;
         if (booking.Payment && booking.Payment !== '0€') {
-          message += `Paying ${booking.Payment}\n`;
+          const cur = booking.Currency ? ' ' + booking.Currency : '';
+          message += `Paying ${booking.Payment}${cur}\n`;
         }
         message += `Coming with ${booking.Driver || 'Momo'} => 80k\n\n`;
       });
     });
 
     return { success: true, message: message };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// Partners helpers
+function getPartners() {
+  try {
+    const data = getSheetData(PARTNERS_SHEET);
+    if (data.length <= 1) return { success: true, data: [] };
+    const headers = data[0];
+    const partners = data.slice(1).map(r => {
+      const row = {};
+      headers.forEach((h, i) => row[h] = r[i]);
+      return row;
+    }).filter(p => p.IsActive === 'Yes');
+    return { success: true, data: partners };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// Commission report per partner and YYYY-MM
+function getCommissionReport(partnerName, yearMonth) {
+  try {
+    const bres = getBookings();
+    if (!bres.success) return { success: false, error: bres.error };
+    const data = bres.data || [];
+    const filtered = data.filter(b => {
+      if (partnerName && b.Partner !== partnerName) return false;
+      if (yearMonth) {
+        // expect YYYY-MM
+        const d = (b.Date || '').toString();
+        if (d.slice(0, 7) !== yearMonth) return false;
+      }
+      return true;
+    });
+    // Aggregate by currency
+    const totals = {};
+    filtered.forEach(b => {
+      const cur = (b.Currency || '').toString().trim() || 'USD';
+      const amt = parseFloat(b.Commission) || 0;
+      totals[cur] = (totals[cur] || 0) + amt;
+    });
+    return { success: true, totals: totals, count: filtered.length };
   } catch (e) {
     return { success: false, error: e.toString() };
   }

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boat Management System</title>
+    <title x-text="settings && settings.companyName ? settings.companyName : 'Boat Management System'">Boat Management System</title>
     <meta name="author" content="noushadBug">
     <meta name="description" content="Professional boat management system for tour operators">
 
@@ -58,7 +58,7 @@
         class="relative bg-sidebar h-screen w-64 sm:block hidden shadow-xl">
         <div class="p-6">
             <a href="#0" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">
-                <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" class="w-12 h-12"
+                <img :src="settings.logoUrl || 'https://cdn-icons-png.flaticon.com/512/6733/6733991.png'" class="w-12 h-12"
                     style="filter: drop-shadow(2px 4px 6px black);">
             </a>
             <button @click="openAddBookingModal()"
@@ -105,7 +105,7 @@
         <!-- Desktop Header -->
         <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
             <div class="w-1/2">
-                <h1 class="text-2xl font-bold text-gray-800">Boat Management System</h1>
+                <h1 class="text-2xl font-bold text-gray-800" x-text="settings.companyName || 'Boat Management System'"></h1>
             </div>
             <div x-data="{ isOpen: false }" class="relative w-1/2 flex justify-end">
                 <span class="content-center px-1">Logged in as </span>
@@ -183,6 +183,15 @@
                             <label class="block text-sm font-medium text-gray-700">End Date</label>
                             <input type="date" x-model="filterEndDate" class="border px-2 py-1 rounded">
                         </div>
+                        <div class="md:ml-auto">
+                            <label class="block text-sm font-medium text-gray-700">Boat</label>
+                            <select x-model="summaryBoatFilter" class="border px-2 py-1 rounded min-w-[180px]">
+                                <option value="">All Boats</option>
+                                <template x-for="b in boats" :key="b.ID">
+                                    <option :value="b.Name" x-text="b.Name"></option>
+                                </template>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Stats Cards -->
@@ -215,6 +224,9 @@
                                         <th>Adults</th>
                                         <th>Children</th>
                                         <th>Total PAX</th>
+                                        <th>Capacity</th>
+                                        <th>Remaining</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -225,6 +237,13 @@
                                             <td x-text="item.Adults"></td>
                                             <td x-text="item.Children"></td>
                                             <td x-text="item.TotalPAX"></td>
+                                            <td x-text="item.Capacity"></td>
+                                            <td x-text="item.Remaining"></td>
+                                            <td>
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                                                    :class="item.Status === 'Full' || item.Status === 'Private' || item.Status === 'DayOff' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"
+                                                    x-text="item.Status"></span>
+                                            </td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -282,6 +301,10 @@
                                                 <button @click="editBooking(booking)"
                                                     class="text-blue-600 hover:text-blue-900 mr-2">
                                                     <i class='bx bx-edit-alt'></i>
+                                                </button>
+                                                <button @click="openWhatsApp(booking)" title="Open WhatsApp"
+                                                    class="text-green-600 hover:text-green-900 mr-2">
+                                                    <i class='bx bxl-whatsapp'></i>
                                                 </button>
                                                 <button @click="deleteBooking(booking.BookingID)"
                                                     class="text-red-600 hover:text-red-900">
@@ -416,6 +439,38 @@
                                 <i class='bx bx-plus mr-2'></i> Add Boat
                             </button>
                         </div>
+
+                        <div class="mt-10">
+                            <h3 class="font-semibold mb-2">Partner Commission Report</h3>
+                            <div class="flex flex-col md:flex-row gap-4 items-end mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Partner</label>
+                                    <select x-model="reportPartner" class="border px-2 py-1 rounded min-w-[200px]">
+                                        <option value="">All Partners</option>
+                                        <template x-for="p in partners" :key="p.ID || p.Name">
+                                            <option :value="p.Name" x-text="p.Name"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Month</label>
+                                    <input type="month" x-model="reportMonth" class="border px-2 py-1 rounded">
+                                </div>
+                                <div>
+                                    <button @click="runCommissionReport" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                        <i class='bx bx-refresh mr-1'></i> Run
+                                    </button>
+                                </div>
+                            </div>
+                            <div x-show="commissionTotals && Object.keys(commissionTotals).length" class="bg-gray-50 p-4 rounded border">
+                                <div class="font-medium mb-2">Totals by currency (from <span x-text="reportMonth"></span>)</div>
+                                <ul>
+                                    <template x-for="(val, cur) in commissionTotals" :key="cur">
+                                        <li><span class="font-semibold" x-text="cur"></span>: <span x-text="val.toFixed(2)"></span></li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -450,9 +505,12 @@
                 bookings: [],
                 users: [],
                 boats: [],
+                partners: [],
+                tripTypes: [],
                 drivers: [],
                 loading: false,
                 user: null,
+                settings: { companyName: 'Boat Management System', logoUrl: 'https://cdn-icons-png.flaticon.com/512/6733/6733991.png' },
 
                 // UI State
                 showBookingModal: false,
@@ -483,6 +541,7 @@
 
                 filterStartDate: new Date().toISOString().split('T')[0],
                 filterEndDate: new Date().toISOString().split('T')[0],
+                summaryBoatFilter: '',
 
                 // Messages
                 messageDate: new Date().toISOString().split('T')[0],
@@ -510,6 +569,10 @@
                     managers: ''
                 },
                 editingBoatId: null,
+                // Reports
+                reportPartner: '',
+                reportMonth: new Date().toISOString().slice(0,7),
+                commissionTotals: {},
 
                 // Methods
                 /** Load dashboard data */
@@ -554,7 +617,43 @@
                                 .getDrivers();
                         });
 
-                        await Promise.all([boatsPromise, usersPromise, driversPromise]);
+                        const partnersPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success) {
+                                        this.partners = result.data || [];
+                                    }
+                                    resolve();
+                                })
+                                .getPartners();
+                        });
+
+                        const tripTypesPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success && Array.isArray(result.data)) {
+                                        this.tripTypes = result.data.map(t => t.Name || t.TripType || t.Label).filter(Boolean);
+                                    }
+                                    resolve();
+                                })
+                                .getTripTypes();
+                        });
+
+                        const settingsPromise = new Promise(resolve => {
+                            google.script.run
+                                .withSuccessHandler(result => {
+                                    if (result && result.success) {
+                                        const s = result.data || {};
+                                        this.settings.companyName = s.company_name || this.settings.companyName;
+                                        this.settings.logoUrl = s.company_logo_url || this.settings.logoUrl;
+                                        try { document.title = this.settings.companyName; } catch (e) {}
+                                    }
+                                    resolve();
+                                })
+                                .getSettings();
+                        });
+
+                        await Promise.all([boatsPromise, usersPromise, driversPromise, partnersPromise, tripTypesPromise, settingsPromise]);
                         this.initializeDataTables();
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');
@@ -652,15 +751,48 @@
                                     $table.DataTable().destroy();
                                 }
                                 try {
+                                    let dataArr = [];
+                                    if (tableId === 'allBookingsTable') dataArr = this.bookings;
+                                    else if (tableId === 'usersTable') dataArr = this.users;
+                                    else if (tableId === 'boatsTable') dataArr = this.boats;
                                     $table.DataTable({
                                         ...config,
-                                        data: this[tableId.replace('Table', 's')] || []
+                                        data: dataArr
                                     });
                                 } catch (e) {
                                     console.error('Failed to init table ' + tableId, e);
                                 }
                             }
                         });
+                    }
+                },
+
+                runCommissionReport() {
+                    const month = this.reportMonth; // YYYY-MM
+                    const partner = this.reportPartner;
+                    this.loading = true;
+                    try {
+                        google.script.run
+                            .withSuccessHandler(res => {
+                                if (res && res.success) {
+                                    this.commissionTotals = res.totals || {};
+                                    this.showToast('Commission report ready', 'success');
+                                } else {
+                                    this.commissionTotals = {};
+                                    this.showToast('Failed to compute report: ' + (res && res.error ? res.error : 'Unknown error'), 'error');
+                                }
+                                this.loading = false;
+                            })
+                            .withFailureHandler(err => {
+                                this.commissionTotals = {};
+                                this.showToast('Report error: ' + err, 'error');
+                                this.loading = false;
+                            })
+                            .getCommissionReport(partner, month);
+                    } catch (e) {
+                        this.commissionTotals = {};
+                        this.showToast('Report error: ' + e, 'error');
+                        this.loading = false;
                     }
                 },
 
@@ -873,33 +1005,61 @@
                     return new Set(this.filteredBookings().map(b => b.Boat)).size;
                 },
 
-                /** Aggregates booking details per boat for summary table */
+                /** Aggregates booking details per boat for summary table with capacity/availability */
                 getBoatSummary() {
                     const map = {};
-                    this.filteredBookings().forEach(b => {
-                        if (!map[b.Boat]) {
-                            map[b.Boat] = { Boat: b.Boat, TripTypes: new Set(), Adults: 0, Children: 0, TotalPAX: 0 };
-                        }
-                        map[b.Boat].TripTypes.add(b.TripType);
-                        map[b.Boat].Adults += parseInt(b.Adults) || 0;
-                        map[b.Boat].Children += parseInt(b.Children) || 0;
-                        map[b.Boat].TotalPAX += parseInt(b.TotalPAX) || 0;
+                    this.filteredBookings()
+                        .filter(b => !this.summaryBoatFilter || b.Boat === this.summaryBoatFilter)
+                        .forEach(b => {
+                            if (!map[b.Boat]) {
+                                map[b.Boat] = { Boat: b.Boat, TripTypes: new Set(), Adults: 0, Children: 0, TotalPAX: 0 };
+                            }
+                            map[b.Boat].TripTypes.add(b.TripType);
+                            map[b.Boat].Adults += parseInt(b.Adults) || 0;
+                            map[b.Boat].Children += parseInt(b.Children) || 0;
+                            map[b.Boat].TotalPAX += parseInt(b.TotalPAX) || 0;
+                        });
+                    return Object.values(map).map(m => {
+                        const boat = this.boats.find(x => x.Name === m.Boat);
+                        const capacity = boat ? (parseInt(boat.MaxCapacity) || 0) : 0;
+                        const tripLabels = Array.from(m.TripTypes);
+                        let status = 'Available';
+                        if (tripLabels.includes('DayOff')) status = 'DayOff';
+                        else if (tripLabels.includes('Private')) status = 'Private';
+                        else if (capacity && m.TotalPAX >= capacity) status = 'Full';
+                        const remaining = capacity ? Math.max(0, capacity - m.TotalPAX) : '';
+                        return {
+                            Boat: m.Boat,
+                            TripType: tripLabels.join(', '),
+                            Adults: m.Adults,
+                            Children: m.Children,
+                            TotalPAX: m.TotalPAX,
+                            Capacity: capacity || '',
+                            Remaining: remaining,
+                            Status: status
+                        };
                     });
-                    return Object.values(map).map(m => ({
-                        Boat: m.Boat,
-                        TripType: Array.from(m.TripTypes).join(', '),
-                        Adults: m.Adults,
-                        Children: m.Children,
-                        TotalPAX: m.TotalPAX
-                    }));
                 },
 
                 // Utility methods
-                /** Formats dates in day/month/year */
+                /** Formats dates in dd-mm-yyyy */
                 formatDate(dateString) {
                     if (!dateString) return '';
-                    const date = new Date(dateString);
-                    return date.toLocaleDateString('fr-FR');
+                    const d = new Date(dateString);
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    return `${dd}-${mm}-${yyyy}`;
+                },
+
+                openWhatsApp(booking) {
+                    const phoneRaw = (booking.Phone || '').toString();
+                    if (!phoneRaw) { this.showToast('No phone number on booking', 'error'); return; }
+                    const digits = phoneRaw.replace(/\D/g, '');
+                    if (!digits) { this.showToast('Invalid phone number', 'error'); return; }
+                    const msg = `Hello ${booking.Clients || ''}, regarding your ${booking.TripType || 'trip'} on ${this.formatDate(booking.Date)}.`;
+                    const url = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+                    window.open(url, '_blank');
                 },
 
                 getTripColor(tripType) {

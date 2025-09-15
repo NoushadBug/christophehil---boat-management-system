@@ -1,9 +1,9 @@
 <div x-show="!$store.appStore.isULoggedIn" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-50">
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <div class="text-center mb-6">
-            <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" alt="Boat Logo"
+            <img :src="settings.logoUrl || 'https://cdn-icons-png.flaticon.com/512/6733/6733991.png'" alt="Boat Logo"
                 class="w-16 h-16 mx-auto mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">Boat Management System</h2>
+            <h2 class="text-2xl font-bold text-gray-800" x-text="settings.companyName || 'Boat Management System'"></h2>
             <p class="text-gray-600 mt-2">Sign in to your account</p>
         </div>
 
