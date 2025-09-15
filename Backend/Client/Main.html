@@ -43,8 +43,10 @@
         }
     </script>
 
+    <?!= include('Backend/Client/Components/brandInit'); ?>
+
     <!-- Full-Screen Loading Animation -->
-    <div x-show="loading" class="fixed inset-0 flex items-center justify-center bg-gray-800" style="z-index:200; opacity:0.7;">
+    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-800" style="z-index:200; opacity:0.7;">
         <div class="flex items-center justify-center">
             <div class="w-16 h-16 border-t-4 border-b-4 border-white rounded-full animate-spin"></div>
         </div>
@@ -104,8 +106,9 @@
         class="relative w-full flex flex-col h-screen overflow-y-hidden">
         <!-- Desktop Header -->
         <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
-            <div class="w-1/2">
-                <h1 class="text-2xl font-bold text-gray-800">Boat Management System</h1>
+            <div class="w-1/2 flex items-center gap-3">
+                <img id="companyLogo" class="w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
+                <h1 id="companyName" class="text-2xl font-bold text-gray-800">Boat Management System</h1>
             </div>
             <div x-data="{ isOpen: false }" class="relative w-1/2 flex justify-end">
                 <span class="content-center px-1">Logged in as </span>
@@ -444,6 +447,23 @@
     <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
 
     <script>
+        // Apply company branding from Settings sheet
+        (function applyCompanyBranding(){
+            try {
+                google.script.run.withSuccessHandler(function(map){
+                    if (map && map.company_name) {
+                        var nameEl = document.getElementById('companyName');
+                        if (nameEl) nameEl.textContent = map.company_name;
+                        document.title = map.company_name;
+                    }
+                    if (map && map.company_logo_url) {
+                        var logoEl = document.getElementById('companyLogo');
+                        if (logoEl) { logoEl.src = map.company_logo_url; logoEl.classList.remove('hidden'); }
+                    }
+                }).bm_getSettings();
+            } catch(e) { /* ignore in non-apps script contexts */ }
+        })();
+
         function dashboardApp() {
             return {
                 // Data
@@ -555,11 +575,40 @@
                         });
 
                         await Promise.all([boatsPromise, usersPromise, driversPromise]);
-                        this.initializeDataTables();
+                        // Render is Alpine-driven; ensure DataTables after next frame
+                        requestAnimationFrame(() => { this.safeInitTables(); });
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');
                     } finally {
                         this.loading = false;
+                    }
+                },
+
+                safeInitTables(){
+                    try {
+                        // bookings table
+                        if (window.$ && document.getElementById('allBookingsTable')) {
+                            if ($.fn.DataTable.isDataTable('#allBookingsTable')) {
+                                $('#allBookingsTable').DataTable().destroy();
+                            }
+                            $('#allBookingsTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                        }
+                        // users table
+                        if (window.$ && document.getElementById('usersTable')) {
+                            if ($.fn.DataTable.isDataTable('#usersTable')) {
+                                $('#usersTable').DataTable().destroy();
+                            }
+                            $('#usersTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                        }
+                        // boats table
+                        if (window.$ && document.getElementById('boatsTable')) {
+                            if ($.fn.DataTable.isDataTable('#boatsTable')) {
+                                $('#boatsTable').DataTable().destroy();
+                            }
+                            $('#boatsTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                        }
+                    } catch(e) {
+                        console && console.warn && console.warn('Failed to init DataTables', e);
                     }
                 },
 

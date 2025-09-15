@@ -1,0 +1,43 @@
+<script>
+// Fast, single-shot branding fetch and apply
+(function brandInit(){
+  if (window.__BM_BRAND_APPLIED) return; // idempotent
+  window.__BM_BRAND_APPLIED = true;
+  var targets = {
+    titleEl: document.getElementById('companyName') || document.getElementById('loginTitle'),
+    logoEls: [
+      document.getElementById('companyLogo'),
+      document.getElementById('sidebarLogo'),
+      document.getElementById('loginLogo')
+    ].filter(Boolean),
+    loader: document.getElementById('globalLoader')
+  };
+
+  function apply(map){
+    if (!map) return done();
+    try {
+      if (map.company_name) {
+        if (targets.titleEl) targets.titleEl.textContent = map.company_name;
+        document.title = map.company_name;
+      }
+      if (map.company_logo_url) {
+        targets.logoEls.forEach(function(el){ el.src = map.company_logo_url; el.classList.remove('hidden'); });
+      }
+    } finally { done(); }
+  }
+
+  var timeout = setTimeout(done, 900); // fail-safe to avoid long loader
+  function done(){
+    clearTimeout(timeout);
+    if (targets.loader) targets.loader.style.display = 'none';
+  }
+
+  try {
+    google.script.run.withSuccessHandler(function(map){
+      window.__BM_SETTINGS = map; // cache on window for reuse
+      requestAnimationFrame(function(){ apply(map); });
+    }).bm_getSettings();
+  } catch(e) { done(); }
+})();
+</script>
+

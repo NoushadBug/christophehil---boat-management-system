@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boat Management</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; }
+    header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display:flex; align-items:center; gap:12px; }
+    .brand { font-weight: 700; }
+    .container { padding: 16px; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .card { border:1px solid #e5e7eb; border-radius:8px; padding:12px; background:#fff; }
+    .muted { color:#6b7280; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:8px; border-bottom:1px solid #f3f4f6; text-align:left; }
+    th { font-weight:600; }
+    .badge { padding:2px 8px; border-radius:999px; font-size:12px; display:inline-block; }
+    .type-private { background:#fee2e2; color:#991b1b; }
+    .type-shared { background:#e0e7ff; color:#3730a3; }
+    .type-sunset { background:#ffedd5; color:#9a3412; }
+    .controls { display:flex; gap:8px; align-items:end; }
+    input, select, button { padding:8px; border:1px solid #d1d5db; border-radius:6px; }
+    button.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+    .toast { position:fixed; top:16px; right:16px; background:#111827; color:#fff; padding:10px 12px; border-radius:6px; display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <img id="companyLogo" alt="logo" style="height:28px;width:auto;display:none;" />
+    <div class="brand" id="companyName">Boat Management</div>
+    <div class="muted" id="userInfo"></div>
+  </header>
+  <div class="container">
+    <div class="controls">
+      <div>
+        <label>Date from</label><br>
+        <input type="date" id="dateFrom">
+      </div>
+      <div>
+        <label>Date to</label><br>
+        <input type="date" id="dateTo">
+      </div>
+      <div>
+        <label>Boat</label><br>
+        <select id="boatSelect"><option value="">All</option></select>
+      </div>
+      <button class="primary" id="apply">Apply</button>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="card" style="flex:1; min-width:200px;">
+        <div class="muted">Total Bookings</div>
+        <div id="metricBookings" style="font-size:24px; font-weight:700;">0</div>
+      </div>
+      <div class="card" style="flex:1; min-width:200px;">
+        <div class="muted">Total PAX</div>
+        <div id="metricPax" style="font-size:24px; font-weight:700;">0</div>
+      </div>
+      <div class="card" style="flex:1; min-width:200px;">
+        <div class="muted">Active Boats</div>
+        <div id="metricBoats" style="font-size:24px; font-weight:700;">0</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>Bookings</h3>
+        <button id="addBooking">Add Booking</button>
+      </div>
+      <table id="bookingsTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Time</th><th>Boat</th><th>Type</th><th>Client</th><th>PAX</th><th>Status</th><th>Payment</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Minimal RPC wrapper
+    function rpc(name, payload, onOk, onErr){
+      google.script.run.withSuccessHandler(function(res){ onOk && onOk(res); })
+        .withFailureHandler(function(err){ showToast(err && err.message || 'Error'); onErr && onErr(err); })[name](payload);
+    }
+    function fmtDateDDMMYYYY(iso){
+      if (!iso) return '';
+      var parts = iso.split('-');
+      if (parts.length!==3) return iso;
+      return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+    function showToast(msg){ var t = document.getElementById('toast'); t.textContent = msg; t.style.display='block'; setTimeout(function(){ t.style.display='none'; }, 2200); }
+
+    function loadBoats(){
+      rpc('bm_listBoats', null, function(boats){
+        var sel = document.getElementById('boatSelect');
+        boats.forEach(function(b){ var opt=document.createElement('option'); opt.value=b.Name; opt.textContent=b.Name; sel.appendChild(opt); });
+      });
+    }
+
+    function loadData(){
+      var df = document.getElementById('dateFrom').value;
+      var dt = document.getElementById('dateTo').value;
+      var boat = document.getElementById('boatSelect').value;
+      rpc('bm_listBookings', { dateFrom: df, dateTo: dt, boat: boat }, function(rows){
+        var tbody = document.querySelector('#bookingsTable tbody');
+        tbody.innerHTML = '';
+        var pax = 0; var boats = new Set();
+        rows.forEach(function(r){
+          pax += (Number(r.Adults||0) + Number(r.Children||0));
+          if (r.Boat) boats.add(r.Boat);
+          var tr = document.createElement('tr');
+          var badgeClass = r.TripType === 'private' ? 'type-private' : (r.TripType === 'shared' ? 'type-shared' : 'type-sunset');
+          tr.innerHTML = '<td>'+fmtDateDDMMYYYY(r.Date)+'</td>\
+            <td>'+ (r.Time||'') +'</td>\
+            <td>'+ (r.Boat||'') +'</td>\
+            <td><span class="badge '+badgeClass+'">'+ (r.TripType||'') +'</span></td>\
+            <td>'+ (r.Client||'') +'</td>\
+            <td>'+ (Number(r.Adults||0)+Number(r.Children||0)) +'</td>\
+            <td>'+ (r.Status||'') +'</td>\
+            <td>'+ (r.PaymentAmount||'') + ' ' + (r.Currency||'') +'</td>\
+            <td><button data-id="'+r.Id+'" class="edit">Edit</button></td>';
+          tbody.appendChild(tr);
+        });
+        document.getElementById('metricBookings').textContent = rows.length;
+        document.getElementById('metricPax').textContent = pax;
+        document.getElementById('metricBoats').textContent = boats.size;
+      });
+    }
+
+    function setToday(){
+      var today = new Date();
+      var iso = today.toISOString().slice(0,10);
+      document.getElementById('dateFrom').value = iso;
+      document.getElementById('dateTo').value = iso;
+    }
+
+    function applySettings(){
+      rpc('bm_getSettings', null, function(map){
+        if (map.company_name) document.getElementById('companyName').textContent = map.company_name;
+        if (map.company_logo_url){
+          var img = document.getElementById('companyLogo');
+          img.src = map.company_logo_url; img.style.display='block';
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      setToday();
+      applySettings();
+      loadBoats();
+      loadData();
+      document.getElementById('apply').addEventListener('click', loadData);
+    });
+  </script>
+</body>
+</html>
