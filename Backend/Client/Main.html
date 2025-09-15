@@ -13,9 +13,13 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+    <!-- Flatpickr (Date Range Picker) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <?!= include('Backend/Client/Styles/Stylesheet'); ?>
+    <!-- Flatpickr script placed early so Alpine init can use it -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 </head>
 
@@ -105,7 +109,7 @@
         <!-- Desktop Header -->
         <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
             <div class="w-1/2 flex items-center gap-3">
-                <img class="companyLogo w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
+                <img id="companyLogo" class="companyLogo w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
                 <h1 id="companyName" class="text-2xl font-bold text-gray-800">Boat Management System</h1>
             </div>
             <div x-data="{ isOpen: false }" class="relative w-1/2 flex justify-end">
@@ -173,15 +177,12 @@
 
                 <!-- Dashboard View -->
                 <div x-show="$store.appStore.dashboardView" class="space-y-6">
-                    <!-- Date Filters -->
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Start Date</label>
-                            <input type="date" x-model="filterStartDate" class="border px-2 py-1 rounded">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">End Date</label>
-                            <input type="date" x-model="filterEndDate" class="border px-2 py-1 rounded">
+                    <!-- Date Range Filter -->
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="w-full md:w-auto">
+                            <label class="block text-sm font-medium text-gray-700">Date Range</label>
+                            <input type="text" x-ref="dateRangePicker" x-init="initDateRangePicker()" placeholder="Select date range"
+                                   class="border px-2 py-1 rounded w-full md:w-64">
                         </div>
                     </div>
 
@@ -502,6 +503,8 @@
 
                 filterStartDate: new Date().toISOString().split('T')[0],
                 filterEndDate: new Date().toISOString().split('T')[0],
+                _dateRangeInstance: null,
+                _dateRangeInitRetries: 0,
 
                 // Messages
                 messageDate: new Date().toISOString().split('T')[0],
@@ -959,6 +962,44 @@
                     return date.toLocaleDateString('fr-FR');
                 },
 
+                /** Initialize flatpickr date range picker and bind to filters */
+                initDateRangePicker() {
+                    try {
+                        if (!this.$refs.dateRangePicker) return;
+                        if (!window.flatpickr) {
+                            // Retry a few times in case script loads late
+                            if (this._dateRangeInitRetries < 10) {
+                                this._dateRangeInitRetries++;
+                                return setTimeout(() => this.initDateRangePicker(), 200);
+                            }
+                            console.warn('Flatpickr not available after retries');
+                            return;
+                        }
+                        // Destroy previous instance if any
+                        if (this._dateRangeInstance && this._dateRangeInstance.destroy) {
+                            this._dateRangeInstance.destroy();
+                        }
+                        const defaultStart = this.filterStartDate;
+                        const defaultEnd = this.filterEndDate;
+                        this._dateRangeInstance = flatpickr(this.$refs.dateRangePicker, {
+                            mode: 'range',
+                            dateFormat: 'Y-m-d',
+                            allowInput: true,
+                            defaultDate: [defaultStart, defaultEnd],
+                            onChange: (selectedDates) => {
+                                if (!selectedDates || selectedDates.length === 0) return;
+                                const start = selectedDates[0];
+                                const end = selectedDates[1] || selectedDates[0];
+                                const toYMD = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0];
+                                this.filterStartDate = toYMD(start);
+                                this.filterEndDate = toYMD(end);
+                            },
+                        });
+                    } catch (e) {
+                        console.error('Failed to init date range picker', e);
+                    }
+                },
+
                 getTripColor(tripType) {
                     const colors = {
                         'Private': 'bg-purple-50',
@@ -1335,6 +1376,8 @@
                 // On Alpine init
                 init() {
                     this.checkSession();
+                    // Initialize the date range picker after DOM is ready
+                    this.$nextTick(() => this.initDateRangePicker());
                 },
             }
         }

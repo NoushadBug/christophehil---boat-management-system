@@ -1,22 +1,26 @@
 <script>
-// Fast, single-shot branding fetch and apply
+// Fast, resilient branding fetch and apply (runs before and after DOM ready)
 (function brandInit(){
   if (window.__BM_BRAND_APPLIED) return; // idempotent
   window.__BM_BRAND_APPLIED = true;
-  var targets = {
-    titleEl: document.getElementById('companyName') || document.getElementById('loginTitle'),
-    logoEls: Array.prototype.slice.call(document.querySelectorAll('.companyLogo, #sidebarLogo, #loginLogo')),
-    loader: document.getElementById('globalLoader')
-  };
+
+  function getTargets(){
+    return {
+      titleEl: document.getElementById('companyName') || document.getElementById('loginTitle'),
+      logoEls: Array.prototype.slice.call(document.querySelectorAll('.companyLogo, #sidebarLogo, #loginLogo')),
+      loader: document.getElementById('globalLoader')
+    };
+  }
 
   function apply(map){
     if (!map) return done();
+    var targets = getTargets();
     try {
       if (map.company_name) {
         if (targets.titleEl) targets.titleEl.textContent = map.company_name;
         document.title = map.company_name;
       }
-      if (map.company_logo_url) {
+      if (map.company_logo_url && targets.logoEls.length) {
         targets.logoEls.forEach(function(el){ el.src = map.company_logo_url; el.classList.remove('hidden'); });
       }
     } finally { done(); }
@@ -25,13 +29,23 @@
   var timeout = setTimeout(done, 900); // fail-safe to avoid long loader
   function done(){
     clearTimeout(timeout);
-    if (targets.loader) targets.loader.style.display = 'none';
+    var l = document.getElementById('globalLoader');
+    if (l) l.style.display = 'none';
+  }
+
+  // If settings already fetched elsewhere, apply immediately and also on DOM ready
+  if (window.__BM_SETTINGS) {
+    apply(window.__BM_SETTINGS);
+    document.addEventListener('DOMContentLoaded', function(){ apply(window.__BM_SETTINGS); });
+    return;
   }
 
   try {
     google.script.run.withSuccessHandler(function(map){
       window.__BM_SETTINGS = map; // cache on window for reuse
-      requestAnimationFrame(function(){ apply(map); });
+      // Apply now (in case some elements already exist) and also after DOM is fully parsed
+      apply(map);
+      document.addEventListener('DOMContentLoaded', function(){ apply(map); });
     }).bm_getSettings();
   } catch(e) { done(); }
 })();
