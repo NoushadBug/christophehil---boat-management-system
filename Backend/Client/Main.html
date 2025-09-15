@@ -19,13 +19,11 @@
 
 </head>
 
-<body x-data="dashboardApp()" 
-    x-init="() => { 
+<body x-data="dashboardApp()" x-init="() => { 
         initializeDashboard();
         setTimeout(() => loading = false, 800);
         checkSession();
-    }"
-    class="font-family-karla flex">
+    }" class="font-family-karla flex">
 
     <script>
         function initializeDashboard() {
@@ -46,7 +44,8 @@
     <?!= include('Backend/Client/Components/brandInit'); ?>
 
     <!-- Full-Screen Loading Animation -->
-    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-800" style="z-index:200; opacity:0.7;">
+    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-800"
+        style="z-index:200; opacity:0.7;">
         <div class="flex items-center justify-center">
             <div class="w-16 h-16 border-t-4 border-b-4 border-white rounded-full animate-spin"></div>
         </div>
@@ -60,8 +59,7 @@
         class="relative bg-sidebar h-screen w-64 sm:block hidden shadow-xl">
         <div class="p-6">
             <a href="#0" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">
-                <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" class="w-12 h-12"
-                    style="filter: drop-shadow(2px 4px 6px black);">
+                <img id="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
             </a>
             <button @click="openAddBookingModal()"
                 class="w-full bg-white cta-btn font-semibold py-2 mt-5 rounded-lg rounded-lg rounded-lg shadow-lg hover:shadow-xl hover:text-white hover:bg-blue-800 flex items-center justify-center">
@@ -130,8 +128,7 @@
         <header x-data="{ isOpen: false }" class="mobile-header w-full bg-sidebar py-5 px-6 sm:hidden">
             <div class="flex items-center justify-between">
                 <a href="#0" class="text-white text-3xl font-semibold uppercase hover:text-gray-300">
-                    <img src="https://cdn-icons-png.flaticon.com/512/6733/6733991.png" class="w-10 h-10"
-                        style="filter: drop-shadow(2px 4px 6px black);">
+                    <img id="companyLogo" style="filter: drop-shadow(0px 0px 6px white);width: 3em;height: 3em;">
                 </a>
                 <button @click="isOpen = !isOpen" class="bg-transparent text-white text-3xl focus:outline-none">
                     <i x-show="!isOpen" class='bx bx-menu'></i>
@@ -426,13 +423,13 @@
                 <?!= include('Backend/Client/Components/Modals/UserModal'); ?>
                 <?!= include('Backend/Client/Components/Modals/BoatModal'); ?>
 
-                    <!-- jQuery -->
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
-                    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
-                    <script src="https://cdn.datatables.net/plug-ins/1.10.12/sorting/datetime-moment.js"></script>
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+                <!-- jQuery -->
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+                <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.8.4/moment.min.js"></script>
+                <script src="https://cdn.datatables.net/plug-ins/1.10.12/sorting/datetime-moment.js"></script>
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
             </main>
 
@@ -448,9 +445,9 @@
 
     <script>
         // Apply company branding from Settings sheet
-        (function applyCompanyBranding(){
+        (function applyCompanyBranding() {
             try {
-                google.script.run.withSuccessHandler(function(map){
+                google.script.run.withSuccessHandler(function (map) {
                     if (map && map.company_name) {
                         var nameEl = document.getElementById('companyName');
                         if (nameEl) nameEl.textContent = map.company_name;
@@ -461,7 +458,7 @@
                         if (logoEl) { logoEl.src = map.company_logo_url; logoEl.classList.remove('hidden'); }
                     }
                 }).bm_getSettings();
-            } catch(e) { /* ignore in non-apps script contexts */ }
+            } catch (e) { /* ignore in non-apps script contexts */ }
         })();
 
         function dashboardApp() {
@@ -584,30 +581,30 @@
                     }
                 },
 
-                safeInitTables(){
+                safeInitTables() {
                     try {
                         // bookings table
                         if (window.$ && document.getElementById('allBookingsTable')) {
                             if ($.fn.DataTable.isDataTable('#allBookingsTable')) {
                                 $('#allBookingsTable').DataTable().destroy();
                             }
-                            $('#allBookingsTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                            $('#allBookingsTable').DataTable({ autoWidth: false, responsive: true, deferRender: true });
                         }
                         // users table
                         if (window.$ && document.getElementById('usersTable')) {
                             if ($.fn.DataTable.isDataTable('#usersTable')) {
                                 $('#usersTable').DataTable().destroy();
                             }
-                            $('#usersTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                            $('#usersTable').DataTable({ autoWidth: false, responsive: true, deferRender: true });
                         }
                         // boats table
                         if (window.$ && document.getElementById('boatsTable')) {
                             if ($.fn.DataTable.isDataTable('#boatsTable')) {
                                 $('#boatsTable').DataTable().destroy();
                             }
-                            $('#boatsTable').DataTable({ autoWidth:false, responsive:true, deferRender:true });
+                            $('#boatsTable').DataTable({ autoWidth: false, responsive: true, deferRender: true });
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console && console.warn && console.warn('Failed to init DataTables', e);
                     }
                 },
