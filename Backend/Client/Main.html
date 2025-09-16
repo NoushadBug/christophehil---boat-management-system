@@ -203,29 +203,33 @@
                         </div>
                     </div>
 
-                    <!-- Boat Summary Table -->
+                    <!-- Summary Table -->
                     <div class="bg-white rounded shadow overflow-hidden">
-                        <div class="px-6 py-4 border-b">
-                            <h2 class="text-lg font-semibold text-gray-800">Boat Summary</h2>
+                        <div class="px-6 py-4 border-b flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <h2 class="text-lg font-semibold text-gray-800" x-text="`Summary by ${getSummaryHeader()}`"></h2>
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm text-gray-600">Group by</label>
+                                <select class="border rounded px-2 py-1 text-sm" x-model="summaryGroupBy">
+                                    <option value="Boat">Boat</option>
+                                    <option value="TripType">Trip Type</option>
+                                    <option value="Date">Booking Date</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
                             <table id="summaryTable" class="w-full table-fixed">
                                 <thead>
                                     <tr class="text-left">
-                                        <th class="w-2/12 px-3 py-2">Boat</th>
-                                        <th class="w-3/12 px-3 py-2">Trip Type</th>
-                                        <th class="w-2/12 px-3 py-2">Booking Date</th>
-                                        <th class="w-1/12 px-3 py-2 text-right">Adults</th>
-                                        <th class="w-1/12 px-3 py-2 text-right">Children</th>
-                                        <th class="w-1/12 px-3 py-2 text-right">Total PAX</th>
+                                        <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
+                                        <th class="w-2/12 px-3 py-2 text-right">Adults</th>
+                                        <th class="w-2/12 px-3 py-2 text-right">Children</th>
+                                        <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template x-for="item in getBoatSummary()" :key="item.Boat + '-' + (item.Date||'')">
+                                    <template x-for="item in getSummaryData()" :key="item.key">
                                         <tr class="align-middle">
-                                            <td class="px-3 py-2" x-text="item.Boat"></td>
-                                            <td class="px-3 py-2" x-text="item.TripType"></td>
-                                            <td class="px-3 py-2" x-text="formatDate(item.Date)"></td>
+                                            <td class="px-3 py-2" x-text="item.label"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.Adults"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.Children"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
@@ -502,10 +506,14 @@
                 },
                 editingBookingId: null,
 
-                filterStartDate: new Date().toISOString().split('T')[0],
-                filterEndDate: new Date().toISOString().split('T')[0],
+                // Default range: yesterday → today (timezone-safe)
+                filterStartDate: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
+                filterEndDate: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
                 _dateRangeInstance: null,
                 _dateRangeInitRetries: 0,
+
+                // Dashboard summary grouping
+                summaryGroupBy: 'Boat', // 'Boat' | 'TripType' | 'Date'
 
                 // Messages
                 messageDate: new Date().toISOString().split('T')[0],
@@ -923,6 +931,42 @@
                 /** Counts unique boats in filtered bookings */
                 getActiveBoats() {
                     return new Set(this.filteredBookings().map(b => b.Boat)).size;
+                },
+
+                /** Returns the label for the summary table's first column */
+                getSummaryHeader() {
+                    if (this.summaryGroupBy === 'TripType') return 'Trip Type';
+                    if (this.summaryGroupBy === 'Date') return 'Booking Date';
+                    return 'Boat';
+                },
+
+                /** Generic grouped summary by Boat, TripType, or Date */
+                getSummaryData() {
+                    const dataMap = new Map();
+                    const bookings = this.filteredBookings();
+                    const keyFor = (b) => {
+                        if (this.summaryGroupBy === 'TripType') return b.TripType || 'Unknown';
+                        if (this.summaryGroupBy === 'Date') return b.Date || 'Unknown';
+                        return b.Boat || 'Unknown';
+                    };
+                    bookings.forEach(b => {
+                        const key = keyFor(b);
+                        if (!dataMap.has(key)) {
+                            const label = this.summaryGroupBy === 'Date' ? this.formatDate(key) : key;
+                            dataMap.set(key, { key, label, Adults: 0, Children: 0, TotalPAX: 0 });
+                        }
+                        const agg = dataMap.get(key);
+                        agg.Adults += parseInt(b.Adults) || 0;
+                        agg.Children += parseInt(b.Children) || 0;
+                        agg.TotalPAX += parseInt(b.TotalPAX) || 0;
+                    });
+                    const arr = Array.from(dataMap.values());
+                    if (this.summaryGroupBy === 'Date') {
+                        arr.sort((a, b) => new Date(a.key) - new Date(b.key));
+                    } else {
+                        arr.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+                    }
+                    return arr;
                 },
 
                 /** Aggregates booking details per boat and earliest booking date for summary */
