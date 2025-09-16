@@ -86,21 +86,174 @@ function initializeSpreadsheet() {
   }
 }
 
+// Fetch multiple sheets in a single spreadsheet open and cache the results
+function getBulkSheetData(sheetNames, ttlSeconds) {
+  const cache = CacheService.getScriptCache();
+  const results = {};
+  const missing = [];
+
+  sheetNames.forEach(name => {
+    const key = 'data_' + name;
+    const cached = cache.get(key);
+    if (cached) {
+      try {
+        results[name] = JSON.parse(cached);
+      } catch (e) {
+        // Treat corrupt cache as missing so it gets refreshed
+        missing.push(name);
+      }
+    } else {
+      missing.push(name);
+    }
+  });
+
+  if (missing.length) {
+    const sheetId = getSheetIdFromProperties() || initializeSpreadsheet().getId();
+    const ss = SpreadsheetApp.openById(sheetId);
+    missing.forEach(name => {
+      const sheet = ss.getSheetByName(name);
+      const data = sheet ? sheet.getDataRange().getValues() : [];
+      results[name] = data;
+      cache.put('data_' + name, JSON.stringify(data), ttlSeconds || 300);
+    });
+  }
+
+  sheetNames.forEach(name => {
+    if (!results[name]) {
+      results[name] = [];
+    }
+  });
+
+  return results;
+}
+
 // Cached sheet fetcher for efficiency
 function getSheetData(sheetName) {
-  const cache = CacheService.getScriptCache();
-  const key = 'data_' + sheetName;
-  const cached = cache.get(key);
-  if (cached) return JSON.parse(cached);
-  const sheetId = getSheetIdFromProperties() || initializeSpreadsheet().getId();
-  const ss = SpreadsheetApp.openById(sheetId);
-  const data = ss.getSheetByName(sheetName).getDataRange().getValues();
-  cache.put(key, JSON.stringify(data), 60);
-  return data;
+  const data = getBulkSheetData([sheetName]);
+  return data[sheetName];
 }
 
 function clearSheetCache(sheetName) {
   CacheService.getScriptCache().remove('data_' + sheetName);
+}
+
+// Convert sheet rows into objects using the header row as keys
+function rowsToObjects(data) {
+  if (!data || data.length === 0) {
+    return [];
+  }
+  const headers = data[0].map(header => String(header));
+  const objects = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row) continue;
+    const obj = {};
+    headers.forEach((header, index) => {
+      obj[header] = row[index];
+    });
+    objects.push(obj);
+  }
+  return objects;
+}
+
+// Batch fetch all core dashboard data to minimise round trips
+function getInitialData(user) {
+  try {
+    const sheetMap = getBulkSheetData([
+      BOOKINGS_SHEET,
+      BOATS_SHEET,
+      USERS_SHEET,
+      DRIVERS_SHEET
+    ]);
+
+    const bookingsRows = sheetMap[BOOKINGS_SHEET];
+    const boatsRows = sheetMap[BOATS_SHEET];
+    const usersRows = sheetMap[USERS_SHEET];
+    const driversRows = sheetMap[DRIVERS_SHEET];
+
+    const response = {
+      success: true,
+      data: {
+        bookings: [],
+        boats: [],
+        users: [],
+        drivers: []
+      },
+      meta: {
+        refreshedAt: new Date().toISOString()
+      }
+    };
+
+    const errors = {};
+
+    // Build a boat name -> ID map that honours existing permission logic
+    const boatHeaders = boatsRows && boatsRows.length ? boatsRows[0] : [];
+    const nameIdx = boatHeaders.indexOf('Name');
+    const idIdx = boatHeaders.indexOf('ID');
+    const boatMap = {};
+    if (nameIdx !== -1 && idIdx !== -1) {
+      for (let i = 1; i < boatsRows.length; i++) {
+        const row = boatsRows[i];
+        boatMap[row[nameIdx]] = String(row[idIdx]);
+      }
+    }
+
+    // Bookings with permission filtering identical to getBookings
+    if (bookingsRows && bookingsRows.length > 1) {
+      const headers = bookingsRows[0];
+      let bookings = bookingsRows.slice(1).map(row => {
+        const booking = {};
+        headers.forEach((header, index) => {
+          booking[header] = row[index];
+        });
+        return booking;
+      }).filter(booking => booking.IsArchived !== 'Yes');
+
+      if (user && String(user.Role).toLowerCase() !== 'admin') {
+        if (!hasPermission(user, 'view')) {
+          bookings = [];
+          errors.bookings = 'Unauthorized';
+        } else {
+          const allowed = (user.AccessBoats || '').split(',').map(id => id.trim()).filter(Boolean);
+          bookings = bookings.filter(b => allowed.includes(boatMap[b.Boat]));
+        }
+      }
+
+      response.data.bookings = bookings;
+    }
+
+    // Boats replicate getBoats behaviour while reusing cached rows
+    const boatObjects = rowsToObjects(boatsRows).filter(boat => boat.IsActive === 'Yes');
+    if (user && String(user.Role).toLowerCase() !== 'admin') {
+      if (!hasPermission(user, 'view')) {
+        response.data.boats = [];
+      } else {
+        const allowed = (user.AccessBoats || '').split(',').map(id => id.trim()).filter(Boolean);
+        response.data.boats = boatObjects.filter(boat => allowed.includes(String(boat.ID)));
+      }
+    } else {
+      response.data.boats = boatObjects;
+    }
+
+    // Users only available to admins or roles with 'all'
+    if (hasPermission(user, 'all')) {
+      response.data.users = rowsToObjects(usersRows).filter(u => u.IsActive === 'Yes');
+    } else {
+      response.data.users = [];
+      errors.users = 'Unauthorized';
+    }
+
+    // Drivers simply filtered by active flag
+    response.data.drivers = rowsToObjects(driversRows).filter(d => d.IsActive === 'Yes');
+
+    if (Object.keys(errors).length) {
+      response.errors = errors;
+    }
+
+    return response;
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
 }
 
 // Check whether a user is authorized for a specific permission, treating the Admin role case-insensitively

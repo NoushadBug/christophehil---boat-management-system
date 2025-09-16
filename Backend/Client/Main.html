@@ -550,44 +550,30 @@
                 async loadData() {
                     this.loading = true;
                     try {
-                        await this.fetchBookings();
-
-                        const boatsPromise = new Promise(resolve => {
+                        const result = await new Promise(resolve => {
                             google.script.run
-                                .withSuccessHandler(result => {
-                                    if (result && result.success) {
-                                        this.boats = result.data || [];
-                                    }
-                                    resolve();
-                                })
-                                .getBoats(this.user);
+                                .withSuccessHandler(res => resolve(res))
+                                .withFailureHandler(error => resolve({ success: false, error: error }))
+                                .getInitialData(this.user);
                         });
 
-                        const usersPromise = new Promise(resolve => {
-                            google.script.run
-                                .withSuccessHandler(result => {
-                                    if (result && result.success) {
-                                        this.users = result.data || [];
-                                    }
-                                    resolve();
-                                })
-                                .getUsers(this.user);
-                        });
+                        if (result && result.success) {
+                            const payload = result.data || {};
+                            this.bookings = payload.bookings || [];
+                            this.boats = payload.boats || [];
+                            this.users = payload.users || [];
+                            this.drivers = payload.drivers || [];
 
-                        const driversPromise = new Promise(resolve => {
-                            google.script.run
-                                .withSuccessHandler(result => {
-                                    if (result && result.success) {
-                                        this.drivers = result.data || [];
-                                    }
-                                    resolve();
-                                })
-                                .getDrivers();
-                        });
+                            if (result.errors && result.errors.bookings) {
+                                this.showToast('Error loading bookings: ' + result.errors.bookings, 'error');
+                            }
 
-                        await Promise.all([boatsPromise, usersPromise, driversPromise]);
-                        // Render is Alpine-driven; ensure DataTables after next frame
-                        requestAnimationFrame(() => { this.safeInitTables(); });
+                            // Render is Alpine-driven; ensure DataTables after next frame
+                            requestAnimationFrame(() => { this.safeInitTables(); });
+                        } else {
+                            const message = result && result.error ? result.error : 'Unknown error';
+                            this.showToast('Error loading data: ' + message, 'error');
+                        }
                     } catch (error) {
                         this.showToast('Error loading data: ' + error, 'error');
                     } finally {
@@ -627,35 +613,8 @@
                  * Fetch bookings with retry logic
                  */
                 fetchBookings(retry = false) {
-                    return new Promise(resolve => {
-                        google.script.run
-                            .withSuccessHandler(result => {
-                                if (result && result.success) {
-                                    this.bookings = result.data || [];
-                                    resolve();
-                                } else if (!retry) {
-                                    setTimeout(() => this.fetchBookings(true).then(resolve), 500);
-                                } else {
-                                    let errorMsg = 'Unknown error';
-                                    if (typeof result === 'string') {
-                                        errorMsg = result;
-                                    } else if (result && result.error) {
-                                        errorMsg = result.error;
-                                    }
-                                    this.showToast('Error loading bookings: ' + errorMsg, 'error');
-                                    resolve();
-                                }
-                            })
-                            .withFailureHandler(error => {
-                                if (!retry) {
-                                    setTimeout(() => this.fetchBookings(true).then(resolve), 500);
-                                } else {
-                                    this.showToast('Failed to load bookings: ' + error, 'error');
-                                    resolve();
-                                }
-                            })
-                            .getBookings(this.user);
-                    });
+                    console.warn('fetchBookings is deprecated. Use loadData() to refresh all data.');
+                    return this.loadData();
                 },
 
                 /** Initialize or refresh DataTables with safety checks */
