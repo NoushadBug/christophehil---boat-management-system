@@ -23,10 +23,10 @@
 
 </head>
 
-<body x-data="dashboardApp()" x-init="() => { 
+<body x-data="dashboardApp()" x-init="function() {
         initializeDashboard();
         // Keep loader until session is checked and data loaded
-        if (!checkSession()) { loading = false; }
+        if (!this.checkSession()) { this.loading = false; }
     }" class="font-family-karla flex">
 
     <script>
@@ -179,11 +179,36 @@
                 <!-- Dashboard View -->
                 <div x-show="$store.appStore.dashboardView" class="space-y-6">
                     <!-- Date Range Filter -->
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                    <div class="flex flex-col md:flex-row gap-4 items-start md:items-end md:justify-between">
                         <div class="w-full md:w-auto">
                             <label class="block text-sm font-medium text-gray-700">Date Range</label>
                             <input type="text" x-ref="dateRangePicker" x-init="initDateRangePicker()" placeholder="Select date range"
                                    class="border px-2 py-1 rounded w-full md:w-64">
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" @click="setQuickRange('today')"
+                                    :class="quickRangeClass('today')"
+                                    class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                    Today
+                                </button>
+                                <button type="button" @click="setQuickRange('tomorrow')"
+                                    :class="quickRangeClass('tomorrow')"
+                                    class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                    Tomorrow
+                                </button>
+                                <button type="button" @click="setQuickRange('week')"
+                                    :class="quickRangeClass('week')"
+                                    class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                    This Week
+                                </button>
+                            </div>
+                            <button type="button" @click="loadData()" :disabled="loading"
+                                :class="{'opacity-50 cursor-not-allowed': loading}"
+                                class="bg-white border border-gray-200 shadow px-3 py-2 rounded flex items-center justify-center text-gray-600 hover:text-gray-800 hover:border-gray-300">
+                                <i class='bx bx-refresh text-xl' :class="{ 'animate-spin': loading }" aria-hidden="true"></i>
+                                <span class="sr-only">Refresh dashboard</span>
+                            </button>
                         </div>
                     </div>
 
@@ -236,37 +261,91 @@
 
                     <!-- Summary Table -->
                     <div class="bg-white rounded shadow overflow-hidden">
-                        <div class="px-6 py-4 border-b flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <h2 class="text-lg font-semibold text-gray-800" x-text="`Summary by ${getSummaryHeader()}`"></h2>
-                            <div class="flex items-center gap-2">
-                                <label class="text-sm text-gray-600">Group by</label>
-                                <select class="border rounded px-2 py-1 text-sm" x-model="summaryGroupBy">
-                                    <option value="Boat">Boat</option>
-                                    <option value="TripType">Trip Type</option>
-                                    <option value="Date">Booking Date</option>
-                                </select>
+                        <div class="px-6 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <h2 class="text-lg font-semibold text-gray-800" x-text="summaryGroupBy ? `Summary by ${getSummaryHeader()}` : 'Summary'"></h2>
+                            <div class="flex flex-col gap-2 md:flex-row md:items-center">
+                                <span class="text-sm text-gray-600">Group by</span>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" @click="toggleSummaryGroup('Boat')"
+                                        :class="summaryGroupButtonClass('Boat')"
+                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                        Boat
+                                    </button>
+                                    <button type="button" @click="toggleSummaryGroup('TripType')"
+                                        :class="summaryGroupButtonClass('TripType')"
+                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                        Trip Type
+                                    </button>
+                                    <button type="button" @click="toggleSummaryGroup('Date')"
+                                        :class="summaryGroupButtonClass('Date')"
+                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                        Booking Date
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div class="p-6 overflow-x-auto">
                             <table id="summaryTable" class="w-full table-fixed">
                                 <thead>
-                                    <tr class="text-left">
-                                        <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
-                                        <th class="w-2/12 px-3 py-2 text-right">Bookings</th>
-                                        <th class="w-2/12 px-3 py-2 text-right">Adults</th>
-                                        <th class="w-2/12 px-3 py-2 text-right">Children</th>
-                                        <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
-                                    </tr>
+                                    <template x-if="summaryGroupBy">
+                                        <tr class="text-left">
+                                            <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Bookings</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Adults</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Children</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
+                                        </tr>
+                                    </template>
+                                    <template x-if="!summaryGroupBy">
+                                        <tr class="text-left">
+                                            <th class="w-2/12 px-3 py-2">Booking ID</th>
+                                            <th class="w-2/12 px-3 py-2">Date</th>
+                                            <th class="w-2/12 px-3 py-2">Trip Type</th>
+                                            <th class="w-2/12 px-3 py-2">Boat</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Adults</th>
+                                            <th class="w-1/12 px-3 py-2 text-right">Children</th>
+                                            <th class="w-1/12 px-3 py-2 text-right">Total PAX</th>
+                                        </tr>
+                                    </template>
                                 </thead>
                                 <tbody>
-                                    <template x-for="item in getSummaryData()" :key="item.key">
-                                        <tr class="align-middle">
-                                            <td class="px-3 py-2" x-text="item.label"></td>
-                                            <td class="px-3 py-2 text-right" x-text="item.Bookings"></td>
-                                            <td class="px-3 py-2 text-right" x-text="item.Adults"></td>
-                                            <td class="px-3 py-2 text-right" x-text="item.Children"></td>
-                                            <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
-                                        </tr>
+                                    <template x-if="summaryGroupBy">
+                                        <template x-if="getSummaryData().length === 0">
+                                            <tr>
+                                                <td colspan="5" class="px-3 py-4 text-center text-sm text-gray-500">
+                                                    No bookings found in the selected date range.
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="item in getSummaryData()" :key="item.key">
+                                            <tr class="align-middle">
+                                                <td class="px-3 py-2" x-text="item.label"></td>
+                                                <td class="px-3 py-2 text-right" x-text="item.Bookings"></td>
+                                                <td class="px-3 py-2 text-right" x-text="item.Adults"></td>
+                                                <td class="px-3 py-2 text-right" x-text="item.Children"></td>
+                                                <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                    <template x-if="!summaryGroupBy">
+                                        <template x-if="filteredBookings().length === 0">
+                                            <tr>
+                                                <td colspan="7" class="px-3 py-4 text-center text-sm text-gray-500">
+                                                    No bookings found in the selected date range.
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="booking in filteredBookings()" :key="booking.BookingID">
+                                            <tr>
+                                                <td class="px-3 py-2" x-text="booking.BookingID"></td>
+                                                <td class="px-3 py-2" x-text="formatRangeDate(booking.Date)"></td>
+                                                <td class="px-3 py-2" x-text="booking.TripType"></td>
+                                                <td class="px-3 py-2" x-text="booking.Boat"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Adults) || 0"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Children) || 0"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.TotalPAX) || 0"></td>
+                                            </tr>
+                                        </template>
                                     </template>
                                 </tbody>
                             </table>
@@ -546,7 +625,7 @@
                 _dateRangeInitRetries: 0,
 
                 // Dashboard summary grouping
-                summaryGroupBy: 'Boat', // 'Boat' | 'TripType' | 'Date'
+                summaryGroupBy: null, // 'Boat' | 'TripType' | 'Date'
 
                 // Messages
                 messageDate: new Date().toISOString().split('T')[0],
@@ -612,6 +691,71 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+
+                setQuickRange(range) {
+                    const quick = this.computeQuickRange(range);
+                    if (!quick) return;
+                    this.filterStartDate = quick.start;
+                    this.filterEndDate = quick.end;
+                    if (this._dateRangeInstance && this._dateRangeInstance.setDate) {
+                        const parsed = [quick.start, quick.end].map(date => this.parseYMD(date)).filter(Boolean);
+                        this._dateRangeInstance.setDate(parsed, true);
+                    }
+                },
+
+                computeQuickRange(range) {
+                    const today = this.getLocalToday();
+                    if (range === 'today' || range === 'tomorrow') {
+                        const target = new Date(today);
+                        if (range === 'tomorrow') {
+                            target.setDate(target.getDate() + 1);
+                        }
+                        const start = new Date(target);
+                        start.setDate(start.getDate() - 1);
+                        return {
+                            start: this.toLocalYMD(start),
+                            end: this.toLocalYMD(target)
+                        };
+                    }
+
+                    if (range === 'week') {
+                        const start = new Date(today);
+                        const end = new Date(today);
+                        const day = start.getDay();
+                        const diffToMonday = day === 0 ? -6 : 1 - day;
+                        start.setDate(start.getDate() + diffToMonday);
+                        end.setTime(start.getTime());
+                        end.setDate(start.getDate() + 6);
+                        return {
+                            start: this.toLocalYMD(start),
+                            end: this.toLocalYMD(end)
+                        };
+                    }
+
+                    return null;
+                },
+
+                isQuickRangeActive(range) {
+                    const quick = this.computeQuickRange(range);
+                    if (!quick) return false;
+                    return this.filterStartDate === quick.start && this.filterEndDate === quick.end;
+                },
+
+                quickRangeClass(range) {
+                    return this.isQuickRangeActive(range)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100';
+                },
+
+                toggleSummaryGroup(option) {
+                    this.summaryGroupBy = this.summaryGroupBy === option ? null : option;
+                },
+
+                summaryGroupButtonClass(option) {
+                    return this.summaryGroupBy === option
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100';
                 },
 
                 safeInitTables() {
@@ -927,24 +1071,34 @@
 
                 /** Returns the label for the summary table's first column */
                 getSummaryHeader() {
+                    if (this.summaryGroupBy === 'Boat') return 'Boat';
                     if (this.summaryGroupBy === 'TripType') return 'Trip Type';
                     if (this.summaryGroupBy === 'Date') return 'Booking Date';
-                    return 'Boat';
+                    return '';
                 },
 
                 /** Generic grouped summary by Boat, TripType, or Date */
                 getSummaryData() {
+                    if (!this.summaryGroupBy) {
+                        return [];
+                    }
                     const dataMap = new Map();
                     const bookings = this.filteredBookings();
                     const keyFor = (b) => {
-                        if (this.summaryGroupBy === 'TripType') return b.TripType || 'Unknown';
-                        if (this.summaryGroupBy === 'Date') return b.Date || 'Unknown';
-                        return b.Boat || 'Unknown';
+                        switch (this.summaryGroupBy) {
+                            case 'TripType':
+                                return b.TripType || 'Unknown';
+                            case 'Date':
+                                return b.Date || 'Unknown';
+                            case 'Boat':
+                            default:
+                                return b.Boat || 'Unknown';
+                        }
                     };
                     bookings.forEach(b => {
                         const key = keyFor(b);
                         if (!dataMap.has(key)) {
-                            const label = this.summaryGroupBy === 'Date' ? this.formatDate(key) : key;
+                            const label = (this.summaryGroupBy === 'Date' && key !== 'Unknown') ? this.formatRangeDate(key) : key;
                             dataMap.set(key, { key, label, Bookings: 0, Adults: 0, Children: 0, TotalPAX: 0 });
                         }
                         const agg = dataMap.get(key);
@@ -955,7 +1109,14 @@
                     });
                     const arr = Array.from(dataMap.values());
                     if (this.summaryGroupBy === 'Date') {
-                        arr.sort((a, b) => new Date(a.key) - new Date(b.key));
+                        arr.sort((a, b) => {
+                            const timeA = new Date(a.key).getTime();
+                            const timeB = new Date(b.key).getTime();
+                            if (isNaN(timeA) && isNaN(timeB)) return 0;
+                            if (isNaN(timeA)) return 1;
+                            if (isNaN(timeB)) return -1;
+                            return timeA - timeB;
+                        });
                     } else {
                         arr.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
                     }
@@ -1068,6 +1229,27 @@
                 },
 
                 // Utility methods
+                toLocalYMD(date) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                },
+
+                parseYMD(value) {
+                    if (!value || typeof value !== 'string') return null;
+                    const parts = value.split('-');
+                    if (parts.length !== 3) return null;
+                    const [year, month, day] = parts.map(Number);
+                    if ([year, month, day].some(n => Number.isNaN(n))) return null;
+                    return new Date(year, month - 1, day);
+                },
+
+                getLocalToday() {
+                    const now = new Date();
+                    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                },
+
                 /** Formats dates in day/month/year */
                 formatDate(dateString) {
                     if (!dateString) return '';
@@ -1077,10 +1259,22 @@
 
                 /** Formats YYYY-MM-DD without timezone shifts */
                 formatRangeDate(dateString) {
-                    if (!dateString || typeof dateString !== 'string') return '';
-                    const parts = dateString.split('-');
-                    if (parts.length !== 3) return this.formatDate(dateString);
-                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    if (!dateString) return '';
+                    if (dateString instanceof Date && !Number.isNaN(dateString.getTime())) {
+                        return dateString.toLocaleDateString('fr-FR');
+                    }
+                    const raw = String(dateString).trim();
+                    const datePart = raw.includes('T') ? raw.split('T')[0] : raw;
+                    const parts = datePart.split('-');
+                    if (parts.length === 3) {
+                        const [year, month, day] = parts;
+                        return `${day}/${month}/${year}`;
+                    }
+                    const date = new Date(raw);
+                    if (!Number.isNaN(date.getTime())) {
+                        return date.toLocaleDateString('fr-FR');
+                    }
+                    return raw;
                 },
 
                 /** Converts HEX color to RGBA with fallback */
@@ -1132,11 +1326,14 @@
                         }
                         const defaultStart = this.filterStartDate;
                         const defaultEnd = this.filterEndDate;
+                        const defaultDates = [defaultStart, defaultEnd]
+                            .filter(Boolean)
+                            .map(date => this.parseYMD(date));
                         this._dateRangeInstance = flatpickr(this.$refs.dateRangePicker, {
                             mode: 'range',
-                            dateFormat: 'Y-m-d',
+                            dateFormat: 'd/m/Y',
                             allowInput: true,
-                            defaultDate: [defaultStart, defaultEnd],
+                            defaultDate: defaultDates.length ? defaultDates : null,
                             onChange: (selectedDates) => {
                                 if (!selectedDates || selectedDates.length === 0) return;
                                 const start = selectedDates[0];
@@ -1489,7 +1686,7 @@
                             this.$store.appStore.isULoggedIn = true;
                             this.$store.appStore.user = session.user;
                             this.$store.appStore.dashboardView = true;
-                            this.loadData();
+                            this.$nextTick(() => this.loadData());
                             return true;
                         } else {
                             localStorage.removeItem('bms_user');
@@ -1526,7 +1723,6 @@
                 },
                 // On Alpine init
                 init() {
-                    this.checkSession();
                     // Initialize the date range picker after DOM is ready
                     this.$nextTick(() => this.initDateRangePicker());
                 },
