@@ -458,8 +458,10 @@
                     <div class="card p-6">
                         <div class="flex flex-col md:flex-row gap-4 mb-4">
                             <div class="flex-1">
-                                <label class="block mb-1 font-semibold">Select Date</label>
-                                <input type="date" x-model="messageDate" class="w-full border px-3 py-2 rounded">
+                                <label class="block mb-1 font-semibold">Select Date Range</label>
+                                <input type="text" x-ref="messageDateRange" x-init="initMessageDateRangePicker()"
+                                       placeholder="Select date range"
+                                       class="w-full border px-3 py-2 rounded">
                             </div>
                             <div class="flex-1">
                                 <label class="block mb-1 font-semibold">Type</label>
@@ -665,9 +667,12 @@
                 summaryBoatFilter: null,
 
                 // Messages
-                messageDate: new Date().toISOString().split('T')[0],
+                messageRangeStart: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
+                messageRangeEnd: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
                 messageType: 'driver',
                 generatedMessage: '',
+                _messageDateRangeInstance: null,
+                _messageDateInitRetries: 0,
 
                 // Admin
                 showUserModal: false,
@@ -830,6 +835,139 @@
                         return values.some(value => String(value || '').toLowerCase().includes(search));
                     });
                     return filtered;
+                },
+
+                async refreshBookingsForMessages() {
+                    try {
+                        const response = await new Promise((resolve, reject) => {
+                            google.script.run
+                                .withSuccessHandler(res => resolve(res))
+                                .withFailureHandler(err => reject(err))
+                                .getBookings(this.user);
+                        });
+                        if (response && response.success) {
+                            this.bookings = response.data || [];
+                            return true;
+                        }
+                        const message = response && response.error ? response.error : 'Unable to refresh bookings.';
+                        this.showToast(message, 'error');
+                        return false;
+                    } catch (error) {
+                        this.showToast('Failed to refresh bookings: ' + error, 'error');
+                        return false;
+                    }
+                },
+
+                enumerateDates(startYMD, endYMD) {
+                    const startDate = this.parseYMD(startYMD);
+                    const endDate = this.parseYMD(endYMD) || startDate;
+                    if (!startDate) return [];
+                    const startTime = startDate.getTime();
+                    const endTime = endDate ? endDate.getTime() : startTime;
+                    const minTime = Math.min(startTime, endTime);
+                    const maxTime = Math.max(startTime, endTime);
+                    const current = new Date(minTime);
+                    const dates = [];
+                    while (current.getTime() <= maxTime) {
+                        dates.push(this.toLocalYMD(current));
+                        current.setDate(current.getDate() + 1);
+                    }
+                    return dates;
+                },
+
+                buildDriverMessage(date, bookings) {
+                    const label = this.formatRangeDate(date);
+                    const lines = [`Hello,`, '', `Schedule for ${label}`, '', 'Boat of KENDWA (James)', ''];
+                    bookings.forEach((booking, index) => {
+                        const pax = parseInt(booking.TotalPAX) || 0;
+                        const pickup = booking.TransferTime || '8.30';
+                        const hotel = booking.Hotel || 'Neptune pwani';
+                        const driver = booking.Driver || 'James';
+                        lines.push(`Car ${index + 1}`);
+                        lines.push(`Name : ${booking.Clients || 'Unknown'}`);
+                        lines.push(`Number of pax : ${pax} pax`);
+                        lines.push(`Pick-up : ${pickup}`);
+                        lines.push(`Location : ${hotel}`);
+                        lines.push(`Driver : 120k by ${driver}`);
+                        lines.push('');
+                    });
+                    return lines.join('\n').trim();
+                },
+
+                buildStaffMessage(date, bookings) {
+                    const bookingsByBoat = {};
+                    bookings.forEach(booking => {
+                        const key = booking.Boat || 'Unknown Boat';
+                        if (!bookingsByBoat[key]) {
+                            bookingsByBoat[key] = [];
+                        }
+                        bookingsByBoat[key].push(booking);
+                    });
+
+                    const boatNames = Object.keys(bookingsByBoat).sort((a, b) => (a || '').localeCompare(b || ''));
+                    const headerDate = this.formatRangeDate(date);
+                    const lines = [`Hello Diana,`, '', `Schedule for ${headerDate} – ${boatNames.length} boats going out.`, ''];
+
+                    boatNames.forEach(boatName => {
+                        const boatBookings = bookingsByBoat[boatName];
+                        const totalPax = boatBookings.reduce((sum, booking) => sum + (parseInt(booking.TotalPAX) || 0), 0);
+                        const boatLabel = this.getBoatLabel(boatName);
+                        const tripType = boatBookings[0].TripType || 'Trip';
+
+                        lines.push(`${boatName} ${boatLabel}`);
+                        lines.push(`${tripType} – ${totalPax} adults`);
+                        lines.push('Meeting at 8:30 AM');
+                        lines.push('');
+
+                        boatBookings.forEach(booking => {
+                            lines.push(`➡️ ${booking.Clients || 'Guest'}`);
+                            const pax = parseInt(booking.TotalPAX) || 0;
+                            const children = parseInt(booking.Children) || 0;
+                            let paxLine = `${pax} adults`;
+                            if (children > 0) {
+                                paxLine += ` + ${children} children`;
+                            }
+                            if (booking.Partner) {
+                                paxLine += ` – ${booking.Partner}'s clients`;
+                            }
+                            lines.push(paxLine);
+                            if (booking.Payment && String(booking.Payment).trim() && booking.Payment !== '0€') {
+                                lines.push(`Paying ${booking.Payment}`);
+                            }
+                            lines.push(`Coming with ${booking.Driver || 'Momo'} => 80k`);
+                            lines.push('');
+                        });
+                    });
+
+                    return lines.join('\n').trim();
+                },
+
+                getBoatLabel(boatName) {
+                    const boat = this.boats.find(b => b.Name === boatName);
+                    return boat && boat.ColorLabel ? boat.ColorLabel : '🛥️';
+                },
+
+                normalizeBookingDate(value) {
+                    if (!value && value !== 0) return null;
+                    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                        return this.toLocalYMD(value);
+                    }
+                    const str = String(value).trim();
+                    if (!str) return null;
+                    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (isoMatch) {
+                        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+                    }
+                    const dmyMatch = str.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+                    if (dmyMatch) {
+                        const [, dd, mm, yyyy] = dmyMatch;
+                        return `${yyyy}-${mm}-${dd}`;
+                    }
+                    const timestamp = Date.parse(str);
+                    if (!Number.isNaN(timestamp)) {
+                        return this.toLocalYMD(new Date(timestamp));
+                    }
+                    return null;
                 },
 
                 safeInitTables() {
@@ -1064,47 +1202,49 @@
                 async generateMessage() {
                     this.loading = true;
                     try {
-                        // Normalize date to YYYY-MM-DD
-                        let date = this.messageDate;
-                        if (date instanceof Date) {
-                            date = date.toISOString().split('T')[0];
+                        const start = this.messageRangeStart;
+                        const end = this.messageRangeEnd || this.messageRangeStart;
+                        if (!start) {
+                            this.showToast('Please select a date range.', 'warning');
+                            this.loading = false;
+                            return;
                         }
-                        if (typeof date === 'string' && date.includes('/')) {
-                            // Convert from MM/DD/YYYY or DD/MM/YYYY to YYYY-MM-DD
-                            const parts = date.split('/');
-                            if (parts[2].length === 4) {
-                                // MM/DD/YYYY
-                                date = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+
+                        const refreshed = await this.refreshBookingsForMessages();
+                        if (!refreshed) {
+                            this.loading = false;
+                            return;
+                        }
+
+                        const dates = this.enumerateDates(start, end);
+                        const sections = [];
+                        let hasData = false;
+                        dates.forEach(date => {
+                            const dayBookings = this.bookings.filter(b => this.normalizeBookingDate(b.Date) === date && b.Status !== 'Cancelled');
+                            if (!dayBookings.length) {
+                                sections.push(`No bookings found for ${this.formatRangeDate(date)}.`);
+                                return;
                             }
-                        }
-                        const handler = response => {
-                            this.generatedMessage = response && response.message ? response.message : 'No message.';
-                            if (response && response.success) {
-                                this.showToast('Message generated successfully!', 'success');
+                            hasData = true;
+                            if (this.messageType === 'driver') {
+                                sections.push(this.buildDriverMessage(date, dayBookings));
                             } else {
-                                this.showToast('Error generating message: ' + (response && response.error ? response.error : 'Unknown error'), 'error');
+                                sections.push(this.buildStaffMessage(date, dayBookings));
                             }
-                            this.loading = false;
-                        };
-                        const failHandler = error => {
-                            this.generatedMessage = 'Failed to generate message.';
-                            this.showToast('Failed to generate message: ' + error, 'error');
-                            this.loading = false;
-                        };
-                        if (this.messageType === 'driver') {
-                            google.script.run
-                                .withSuccessHandler(handler)
-                                .withFailureHandler(failHandler)
-                                .generateDriverMessage(date);
+                        });
+
+                        const combinedMessage = sections.join('\n\n').trim();
+                        if (hasData) {
+                            this.generatedMessage = combinedMessage;
+                            this.showToast('Message generated successfully!', 'success');
                         } else {
-                            google.script.run
-                                .withSuccessHandler(handler)
-                                .withFailureHandler(failHandler)
-                                .generateStaffMessage(date);
+                            this.generatedMessage = combinedMessage || 'No bookings found for the selected dates.';
+                            this.showToast('No bookings found for the selected dates.', 'info');
                         }
                     } catch (error) {
                         this.generatedMessage = 'Error generating message.';
                         this.showToast('Error generating message: ' + error, 'error');
+                    } finally {
                         this.loading = false;
                     }
                 },
@@ -1419,6 +1559,45 @@
                         });
                     } catch (e) {
                         console.error('Failed to init date range picker', e);
+                    }
+                },
+
+                initMessageDateRangePicker() {
+                    try {
+                        if (!this.$refs.messageDateRange) return;
+                        if (!window.flatpickr) {
+                            if (this._messageDateInitRetries < 10) {
+                                this._messageDateInitRetries++;
+                                return setTimeout(() => this.initMessageDateRangePicker(), 200);
+                            }
+                            console.warn('Flatpickr not available for message date range');
+                            return;
+                        }
+                        if (this._messageDateRangeInstance && this._messageDateRangeInstance.destroy) {
+                            this._messageDateRangeInstance.destroy();
+                        }
+                        const defaults = [this.messageRangeStart, this.messageRangeEnd]
+                            .filter(Boolean)
+                            .map(date => this.parseYMD(date));
+                        this._messageDateRangeInstance = flatpickr(this.$refs.messageDateRange, {
+                            mode: 'range',
+                            dateFormat: 'd/m/Y',
+                            allowInput: true,
+                            defaultDate: defaults.length ? defaults : null,
+                            onChange: selectedDates => {
+                                if (!selectedDates || selectedDates.length === 0) {
+                                    this.messageRangeStart = null;
+                                    this.messageRangeEnd = null;
+                                    return;
+                                }
+                                const start = selectedDates[0];
+                                const end = selectedDates[1] || selectedDates[0];
+                                this.messageRangeStart = this.toLocalYMD(start);
+                                this.messageRangeEnd = this.toLocalYMD(end);
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Failed to init message date range picker', e);
                     }
                 },
 

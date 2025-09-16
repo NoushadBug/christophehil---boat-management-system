@@ -809,16 +809,61 @@ function deleteBoat(requestingUser, id) {
   }
 }
 
+function normalizeDateToDMY(value) {
+  const tz = (typeof Session !== 'undefined' && Session.getScriptTimeZone) ? Session.getScriptTimeZone() : 'UTC';
+  if (!value && value !== 0) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    if (isNaN(value.getTime())) return '';
+    return Utilities.formatDate(value, tz, 'dd/MM/yyyy');
+  }
+  if (typeof value === 'number') {
+    return Utilities.formatDate(new Date(value), tz, 'dd/MM/yyyy');
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return Utilities.formatDate(parsed, tz, 'dd/MM/yyyy');
+    }
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/');
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        const fullYear = year.length === 2 ? `20${year}` : year;
+        return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${fullYear}`;
+      }
+    }
+    if (trimmed.includes('-')) {
+      const parts = trimmed.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+        }
+        // Assume DD-MM-YYYY
+        return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[2]}`;
+      }
+    }
+    return trimmed;
+  }
+  return '';
+}
+
 // Generate driver message with enhanced structure
 function generateDriverMessage(date) {
   try {
     const bookings = getBookings();
     if (!bookings.success) return { success: false, error: bookings.error };
 
-    const dayBookings = bookings.data.filter(booking => booking.Date === date && booking.Status !== 'Cancelled');
+    const targetDate = normalizeDateToDMY(date);
+    if (!targetDate) {
+      return { success: false, error: 'Invalid date provided.' };
+    }
+    const dayBookings = bookings.data.filter(booking => normalizeDateToDMY(booking.Date) === targetDate && booking.Status !== 'Cancelled');
 
     if (dayBookings.length === 0) {
-      return { success: true, message: 'No bookings found for this date.' };
+      return { success: true, message: `No bookings found for ${targetDate}.` };
     }
 
     let message = `Hello,\n\nBoat of KENDWA (James)\n\n`;
@@ -844,10 +889,14 @@ function generateStaffMessage(date) {
     const bookings = getBookings();
     if (!bookings.success) return { success: false, error: bookings.error };
 
-    const dayBookings = bookings.data.filter(booking => booking.Date === date && booking.Status !== 'Cancelled');
+    const targetDate = normalizeDateToDMY(date);
+    if (!targetDate) {
+      return { success: false, error: 'Invalid date provided.' };
+    }
+    const dayBookings = bookings.data.filter(booking => normalizeDateToDMY(booking.Date) === targetDate && booking.Status !== 'Cancelled');
 
     if (dayBookings.length === 0) {
-      return { success: true, message: 'No bookings found for this date.' };
+      return { success: true, message: `No bookings found for ${targetDate}.` };
     }
 
     // Group bookings by boat
@@ -859,7 +908,7 @@ function generateStaffMessage(date) {
       bookingsByBoat[booking.Boat].push(booking);
     });
 
-    let message = `Hello Diana,\n\nTomorrow ${date} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
+    let message = `Hello Diana,\n\nTomorrow ${targetDate} – ${Object.keys(bookingsByBoat).length} boats going out.\n\n`;
 
     Object.keys(bookingsByBoat).forEach((boatName, boatIndex) => {
       const boatBookings = bookingsByBoat[boatName];
