@@ -203,6 +203,37 @@
                         </div>
                     </div>
 
+                    <!-- Boat Availability -->
+                    <div class="bg-white rounded shadow overflow-hidden">
+                        <div class="px-6 py-4 border-b flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-800">Boat Availability</h2>
+                            <span class="text-xs text-gray-500" x-text="filterStartDate && filterEndDate ? `${formatRangeDate(filterStartDate)} → ${formatRangeDate(filterEndDate)}` : 'All dates'"></span>
+                        </div>
+                        <div class="p-6">
+                            <template x-if="getBoatAvailability().length">
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="boat in getBoatAvailability()" :key="boat.name">
+                                        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border shadow-sm transition-transform duration-150 hover:-translate-y-0.5"
+                                            :style="getAvailabilityChipStyle(boat)"
+                                            :title="`Capacity: ${boat.capacity} | Booked: ${boat.booked} | Available: ${boat.available}`">
+                                            <span class="text-xl leading-none" x-text="boat.label"></span>
+                                            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+                                                <span class="font-semibold text-sm sm:text-base" :style="{ color: boat.colorHex || '#1f2937' }" x-text="boat.name"></span>
+                                                <span class="flex items-center gap-1 text-xs sm:text-sm" :class="getAvailabilityIconClass(boat)">
+                                                    <i class="bx text-base sm:text-lg" :class="getAvailabilityIcon(boat)"></i>
+                                                    <span x-text="getAvailabilityStatusText(boat)"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!getBoatAvailability().length">
+                                <p class="text-sm text-gray-500">No boats available to display.</p>
+                            </template>
+                        </div>
+                    </div>
+
                     <!-- Summary Table -->
                     <div class="bg-white rounded shadow overflow-hidden">
                         <div class="px-6 py-4 border-b flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -221,6 +252,7 @@
                                 <thead>
                                     <tr class="text-left">
                                         <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
+                                        <th class="w-2/12 px-3 py-2 text-right">Bookings</th>
                                         <th class="w-2/12 px-3 py-2 text-right">Adults</th>
                                         <th class="w-2/12 px-3 py-2 text-right">Children</th>
                                         <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
@@ -230,6 +262,7 @@
                                     <template x-for="item in getSummaryData()" :key="item.key">
                                         <tr class="align-middle">
                                             <td class="px-3 py-2" x-text="item.label"></td>
+                                            <td class="px-3 py-2 text-right" x-text="item.Bookings"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.Adults"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.Children"></td>
                                             <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
@@ -912,9 +945,10 @@
                         const key = keyFor(b);
                         if (!dataMap.has(key)) {
                             const label = this.summaryGroupBy === 'Date' ? this.formatDate(key) : key;
-                            dataMap.set(key, { key, label, Adults: 0, Children: 0, TotalPAX: 0 });
+                            dataMap.set(key, { key, label, Bookings: 0, Adults: 0, Children: 0, TotalPAX: 0 });
                         }
                         const agg = dataMap.get(key);
+                        agg.Bookings += 1;
                         agg.Adults += parseInt(b.Adults) || 0;
                         agg.Children += parseInt(b.Children) || 0;
                         agg.TotalPAX += parseInt(b.TotalPAX) || 0;
@@ -926,6 +960,81 @@
                         arr.sort((a, b) => (a.label || '').localeCompare(b.label || ''));
                     }
                     return arr;
+                },
+
+                /** Availability summary for each boat based on filtered bookings */
+                getBoatAvailability() {
+                    const boatsByName = {};
+                    this.boats.forEach(boat => {
+                        const capacity = parseInt(boat.MaxCapacity) || 0;
+                        const hex = this.normalizeHex(boat.ColorHex) || '#2563eb';
+                        boatsByName[boat.Name] = {
+                            name: boat.Name,
+                            capacity,
+                            booked: 0,
+                            label: boat.ColorLabel || '🛥️',
+                            colorHex: hex
+                        };
+                    });
+
+                    this.filteredBookings().forEach(booking => {
+                        const boatInfo = boatsByName[booking.Boat];
+                        if (boatInfo) {
+                            boatInfo.booked += parseInt(booking.TotalPAX) || 0;
+                        }
+                    });
+
+                    const availability = Object.values(boatsByName).map(boat => {
+                        const available = boat.capacity - boat.booked;
+                        return {
+                            name: boat.name,
+                            capacity: boat.capacity,
+                            booked: boat.booked,
+                            available: available,
+                            safeAvailable: available >= 0 ? available : 0,
+                            overbooked: available < 0 ? Math.abs(available) : 0,
+                            label: boat.label,
+                            colorHex: boat.colorHex
+                        };
+                    });
+
+                    availability.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    return availability;
+                },
+
+                /** Style helper for availability chip background/border */
+                getAvailabilityChipStyle(boat) {
+                    const hex = this.normalizeHex(boat.colorHex) || '#2563eb';
+                    return {
+                        background: this.hexToRgba(hex, 0.12),
+                        borderColor: hex
+                    };
+                },
+
+                /** Icon to represent the availability state */
+                getAvailabilityIcon(boat) {
+                    if (boat.overbooked > 0) return 'bx-error-circle';
+                    if (boat.safeAvailable === 0) return 'bx-time-five';
+                    return 'bx-check-circle';
+                },
+
+                /** Color for the state icon/text */
+                getAvailabilityIconClass(boat) {
+                    if (boat.overbooked > 0) return 'text-red-600';
+                    if (boat.safeAvailable === 0) return 'text-amber-600';
+                    return 'text-emerald-600';
+                },
+
+                /** Human readable availability message */
+                getAvailabilityStatusText(boat) {
+                    if (boat.overbooked > 0) {
+                        return `Overbooked by ${boat.overbooked} pax`;
+                    }
+                    if (boat.safeAvailable === 0) {
+                        return 'Fully booked';
+                    }
+                    const seats = boat.safeAvailable === 1 ? 'seat' : 'seats';
+                    return `${boat.safeAvailable} ${seats} free`;
                 },
 
                 /** Aggregates booking details per boat and earliest booking date for summary */
@@ -964,6 +1073,44 @@
                     if (!dateString) return '';
                     const date = new Date(dateString);
                     return date.toLocaleDateString('fr-FR');
+                },
+
+                /** Formats YYYY-MM-DD without timezone shifts */
+                formatRangeDate(dateString) {
+                    if (!dateString || typeof dateString !== 'string') return '';
+                    const parts = dateString.split('-');
+                    if (parts.length !== 3) return this.formatDate(dateString);
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                },
+
+                /** Converts HEX color to RGBA with fallback */
+                hexToRgba(hex, alpha) {
+                    const normalized = this.normalizeHex(hex);
+                    if (!normalized) {
+                        return `rgba(37, 99, 235, ${typeof alpha === 'number' ? alpha : 1})`;
+                    }
+                    const value = parseInt(normalized.slice(1), 16);
+                    const r = (value >> 16) & 255;
+                    const g = (value >> 8) & 255;
+                    const b = value & 255;
+                    const a = typeof alpha === 'number' ? alpha : 1;
+                    return `rgba(${r}, ${g}, ${b}, ${a})`;
+                },
+
+                /** Normalises short/long HEX strings */
+                normalizeHex(hex) {
+                    if (!hex) return null;
+                    let value = String(hex).trim();
+                    if (!value.startsWith('#')) {
+                        value = '#' + value;
+                    }
+                    if (value.length === 4) {
+                        value = '#' + value.slice(1).split('').map(ch => ch + ch).join('');
+                    }
+                    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                        return value.toUpperCase();
+                    }
+                    return null;
                 },
 
                 /** Initialize flatpickr date range picker and bind to filters */
