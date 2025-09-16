@@ -238,9 +238,15 @@
                             <template x-if="getBoatAvailability().length">
                                 <div class="flex flex-wrap gap-3">
                                     <template x-for="boat in getBoatAvailability()" :key="boat.name">
-                                        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border shadow-sm transition-transform duration-150 hover:-translate-y-0.5"
+                                        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border shadow-sm transition-transform duration-150"
+                                            :class="summaryBoatFilterClass(boat.name)"
                                             :style="getAvailabilityChipStyle(boat)"
-                                            :title="`Capacity: ${boat.capacity} | Booked: ${boat.booked} | Available: ${boat.available}`">
+                                            :title="`Capacity: ${boat.capacity} | Booked: ${boat.booked} | Available: ${boat.available}`"
+                                            role="button"
+                                            tabindex="0"
+                                            @click="toggleSummaryBoatFilter(boat.name)"
+                                            @keydown.enter.prevent="toggleSummaryBoatFilter(boat.name)"
+                                            @keydown.space.prevent="toggleSummaryBoatFilter(boat.name)">
                                             <span class="text-xl leading-none" x-text="boat.label"></span>
                                             <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
                                                 <span class="font-semibold text-sm sm:text-base" :style="{ color: boat.colorHex || '#1f2937' }" x-text="boat.name"></span>
@@ -261,42 +267,60 @@
 
                     <!-- Summary Table -->
                     <div class="bg-white rounded shadow overflow-hidden">
-                        <div class="px-6 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <h2 class="text-lg font-semibold text-gray-800" x-text="summaryGroupBy ? `Summary by ${getSummaryHeader()}` : 'Summary'"></h2>
-                            <div class="flex flex-col gap-2 md:flex-row md:items-center">
-                                <span class="text-sm text-gray-600">Group by</span>
-                                <div class="flex flex-wrap gap-2">
-                                    <button type="button" @click="toggleSummaryGroup('Boat')"
-                                        :class="summaryGroupButtonClass('Boat')"
-                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
-                                        Boat
-                                    </button>
-                                    <button type="button" @click="toggleSummaryGroup('TripType')"
-                                        :class="summaryGroupButtonClass('TripType')"
-                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
-                                        Trip Type
-                                    </button>
-                                    <button type="button" @click="toggleSummaryGroup('Date')"
-                                        :class="summaryGroupButtonClass('Date')"
-                                        class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
-                                        Booking Date
-                                    </button>
+                        <div class="px-6 py-4 border-b space-y-3">
+                            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <h2 class="text-lg font-semibold text-gray-800" x-text="summaryGroupBy ? `Summary by ${getSummaryHeader()}` : 'Summary'"></h2>
+                                <div class="flex flex-col gap-2 md:flex-row md:items-center">
+                                    <span class="text-sm text-gray-600">Group by</span>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" @click="toggleSummaryGroup('Boat')"
+                                            :class="summaryGroupButtonClass('Boat')"
+                                            class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                            Boat
+                                        </button>
+                                        <button type="button" @click="toggleSummaryGroup('TripType')"
+                                            :class="summaryGroupButtonClass('TripType')"
+                                            class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                            Trip Type
+                                        </button>
+                                        <button type="button" @click="toggleSummaryGroup('Date')"
+                                            :class="summaryGroupButtonClass('Date')"
+                                            class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
+                                            Booking Date
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div class="w-full md:w-72">
+                                    <input type="search" x-model.trim="summarySearchTerm" placeholder="Search bookings"
+                                        class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        aria-label="Search summary table">
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-sm">
+                                    <template x-if="summaryBoatFilter">
+                                        <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                                            Boat: <span x-text="summaryBoatFilter"></span>
+                                            <button type="button" @click="clearSummaryBoatFilter()" class="text-blue-600 hover:text-blue-800">
+                                                <i class='bx bx-x'></i>
+                                            </button>
+                                        </span>
+                                    </template>
+                                    <template x-if="summarySearchTerm">
+                                        <span class="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                                            Search: <span x-text="summarySearchTerm"></span>
+                                            <button type="button" @click="summarySearchTerm = ''" class="text-gray-600 hover:text-gray-800">
+                                                <i class='bx bx-x'></i>
+                                            </button>
+                                        </span>
+                                    </template>
                                 </div>
                             </div>
                         </div>
-                        <div class="p-6 overflow-x-auto">
-                            <table id="summaryTable" class="w-full table-fixed">
-                                <thead>
-                                    <template x-if="summaryGroupBy">
-                                        <tr class="text-left">
-                                            <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
-                                            <th class="w-2/12 px-3 py-2 text-right">Bookings</th>
-                                            <th class="w-2/12 px-3 py-2 text-right">Adults</th>
-                                            <th class="w-2/12 px-3 py-2 text-right">Children</th>
-                                            <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
-                                        </tr>
-                                    </template>
-                                    <template x-if="!summaryGroupBy">
+                        <div class="p-6 overflow-x-auto space-y-8">
+                            <div x-show="!summaryGroupBy" x-cloak>
+                                <table class="w-full table-fixed">
+                                    <thead>
                                         <tr class="text-left">
                                             <th class="w-2/12 px-3 py-2">Booking ID</th>
                                             <th class="w-2/12 px-3 py-2">Date</th>
@@ -306,14 +330,45 @@
                                             <th class="w-1/12 px-3 py-2 text-right">Children</th>
                                             <th class="w-1/12 px-3 py-2 text-right">Total PAX</th>
                                         </tr>
-                                    </template>
-                                </thead>
-                                <tbody>
-                                    <template x-if="summaryGroupBy">
+                                    </thead>
+                                    <tbody>
+                                        <template x-if="summarySimpleBookings().length === 0">
+                                            <tr>
+                                                <td colspan="7" class="px-3 py-4 text-center text-sm text-gray-500">
+                                                    No bookings match the current filters.
+                                                </td>
+                                            </tr>
+                                        </template>
+                                        <template x-for="booking in summarySimpleBookings()" :key="booking.BookingID">
+                                            <tr>
+                                                <td class="px-3 py-2" x-text="booking.BookingID"></td>
+                                                <td class="px-3 py-2" x-text="formatRangeDate(booking.Date)"></td>
+                                                <td class="px-3 py-2" x-text="booking.TripType"></td>
+                                                <td class="px-3 py-2" x-text="booking.Boat"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Adults) || 0"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Children) || 0"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.TotalPAX) || 0"></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div x-show="summaryGroupBy" x-cloak>
+                                <table class="w-full table-fixed">
+                                    <thead>
+                                        <tr class="text-left">
+                                            <th class="w-4/12 px-3 py-2" x-text="getSummaryHeader()"></th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Bookings</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Adults</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Children</th>
+                                            <th class="w-2/12 px-3 py-2 text-right">Total PAX</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         <template x-if="getSummaryData().length === 0">
                                             <tr>
                                                 <td colspan="5" class="px-3 py-4 text-center text-sm text-gray-500">
-                                                    No bookings found in the selected date range.
+                                                    No bookings match the current filters.
                                                 </td>
                                             </tr>
                                         </template>
@@ -326,29 +381,9 @@
                                                 <td class="px-3 py-2 text-right" x-text="item.TotalPAX"></td>
                                             </tr>
                                         </template>
-                                    </template>
-                                    <template x-if="!summaryGroupBy">
-                                        <template x-if="filteredBookings().length === 0">
-                                            <tr>
-                                                <td colspan="7" class="px-3 py-4 text-center text-sm text-gray-500">
-                                                    No bookings found in the selected date range.
-                                                </td>
-                                            </tr>
-                                        </template>
-                                        <template x-for="booking in filteredBookings()" :key="booking.BookingID">
-                                            <tr>
-                                                <td class="px-3 py-2" x-text="booking.BookingID"></td>
-                                                <td class="px-3 py-2" x-text="formatRangeDate(booking.Date)"></td>
-                                                <td class="px-3 py-2" x-text="booking.TripType"></td>
-                                                <td class="px-3 py-2" x-text="booking.Boat"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Adults) || 0"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Children) || 0"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.TotalPAX) || 0"></td>
-                                            </tr>
-                                        </template>
-                                    </template>
-                                </tbody>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -626,6 +661,8 @@
 
                 // Dashboard summary grouping
                 summaryGroupBy: null, // 'Boat' | 'TripType' | 'Date'
+                summarySearchTerm: '',
+                summaryBoatFilter: null,
 
                 // Messages
                 messageDate: new Date().toISOString().split('T')[0],
@@ -756,6 +793,43 @@
                     return this.summaryGroupBy === option
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100';
+                },
+
+                toggleSummaryBoatFilter(boatName) {
+                    this.summaryBoatFilter = this.summaryBoatFilter === boatName ? null : boatName;
+                },
+
+                clearSummaryBoatFilter() {
+                    this.summaryBoatFilter = null;
+                },
+
+                summaryBoatFilterClass(boatName) {
+                    return this.summaryBoatFilter === boatName
+                        ? 'cursor-pointer ring-2 ring-blue-400 border-blue-500 bg-blue-50'
+                        : 'cursor-pointer hover:-translate-y-0.5';
+                },
+
+                summarySimpleBookings() {
+                    return this.summaryFilteredBookings();
+                },
+
+                summaryFilteredBookings() {
+                    const search = (this.summarySearchTerm || '').toLowerCase();
+                    const filtered = this.filteredBookings().filter(booking => {
+                        if (this.summaryBoatFilter && booking.Boat !== this.summaryBoatFilter) {
+                            return false;
+                        }
+                        if (!search) return true;
+                        const values = [
+                            booking.BookingID,
+                            booking.Clients,
+                            booking.TripType,
+                            booking.Boat,
+                            this.formatRangeDate(booking.Date)
+                        ];
+                        return values.some(value => String(value || '').toLowerCase().includes(search));
+                    });
+                    return filtered;
                 },
 
                 safeInitTables() {
@@ -1083,7 +1157,7 @@
                         return [];
                     }
                     const dataMap = new Map();
-                    const bookings = this.filteredBookings();
+                    const bookings = this.summaryFilteredBookings();
                     const keyFor = (b) => {
                         switch (this.summaryGroupBy) {
                             case 'TripType':
