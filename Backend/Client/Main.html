@@ -48,8 +48,8 @@
     <?!= include('Backend/Client/Components/brandInit'); ?>
 
     <!-- Full-Screen Loading Animation -->
-    <div x-show="loading" id="globalLoader" class="fixed inset-0 flex items-center justify-center bg-gray-900/75 backdrop-blur-sm"
-        style="z-index:200;">
+    <div x-show="loading" id="globalLoader"
+        class="fixed inset-0 flex items-center justify-center bg-gray-900/75 backdrop-blur-sm" style="z-index:200;">
         <div class="flex flex-col items-center justify-center text-white gap-3">
             <div class="w-16 h-16 border-t-4 border-b-4 border-white rounded-full animate-spin"></div>
             <div class="text-sm opacity-90 animate-pulse">Loading...</div>
@@ -110,7 +110,8 @@
         <!-- Desktop Header -->
         <header class="w-full items-center bg-white py-2 px-6 hidden sm:flex">
             <div class="w-1/2 flex items-center gap-3">
-                <img id="companyLogo" class="companyLogo w-10 h-10 hidden" style="filter: drop-shadow(2px 4px 6px black);">
+                <img id="companyLogo" class="companyLogo w-10 h-10 hidden"
+                    style="filter: drop-shadow(2px 4px 6px black);">
                 <h1 id="companyName" class="text-2xl font-bold text-gray-800">Boat Management System</h1>
             </div>
             <div x-data="{ isOpen: false }" class="relative w-1/2 flex justify-end">
@@ -182,13 +183,12 @@
                     <div class="flex flex-col md:flex-row gap-4 items-start md:items-end md:justify-between">
                         <div class="w-full md:w-auto">
                             <label class="block text-sm font-medium text-gray-700">Date Range</label>
-                            <input type="text" x-ref="dateRangePicker" x-init="initDateRangePicker()" placeholder="Select date range"
-                                   class="border px-2 py-1 rounded w-full md:w-64">
+                            <input type="text" x-ref="dateRangePicker" x-init="initDateRangePicker()"
+                                placeholder="Select date range" class="border px-2 py-1 rounded w-full md:w-64">
                         </div>
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="flex flex-wrap gap-2">
-                                <button type="button" @click="setQuickRange('today')"
-                                    :class="quickRangeClass('today')"
+                                <button type="button" @click="setQuickRange('today')" :class="quickRangeClass('today')"
                                     class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
                                     Today
                                 </button>
@@ -197,8 +197,7 @@
                                     class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
                                     Tomorrow
                                 </button>
-                                <button type="button" @click="setQuickRange('week')"
-                                    :class="quickRangeClass('week')"
+                                <button type="button" @click="setQuickRange('week')" :class="quickRangeClass('week')"
                                     class="px-3 py-1.5 rounded-md border text-sm font-medium transition">
                                     This Week
                                 </button>
@@ -206,7 +205,8 @@
                             <button type="button" @click="loadData()" :disabled="loading"
                                 :class="{'opacity-50 cursor-not-allowed': loading}"
                                 class="bg-white border border-gray-200 shadow px-3 py-2 rounded flex items-center justify-center text-gray-600 hover:text-gray-800 hover:border-gray-300">
-                                <i class='bx bx-refresh text-xl' :class="{ 'animate-spin': loading }" aria-hidden="true"></i>
+                                <i class='bx bx-refresh text-xl' :class="{ 'animate-spin': loading }"
+                                    aria-hidden="true"></i>
                                 <span class="sr-only">Refresh dashboard</span>
                             </button>
                         </div>
@@ -232,7 +232,8 @@
                     <div class="bg-white rounded shadow overflow-hidden">
                         <div class="px-6 py-4 border-b flex items-center justify-between">
                             <h2 class="text-lg font-semibold text-gray-800">Boat Availability</h2>
-                            <span class="text-xs text-gray-500" x-text="filterStartDate && filterEndDate ? `${formatRangeDate(filterStartDate)} → ${formatRangeDate(filterEndDate)}` : 'All dates'"></span>
+                            <span class="text-xs text-gray-500"
+                                x-text="filterStartDate && filterEndDate ? `${formatRangeDate(filterStartDate)} → ${formatRangeDate(filterEndDate)}` : 'All dates'"></span>
                         </div>
                         <div class="p-6">
                             <template x-if="getBoatAvailability().length">
@@ -242,16 +243,18 @@
                                             :class="summaryBoatFilterClass(boat.name)"
                                             :style="getAvailabilityChipStyle(boat)"
                                             :title="`Capacity: ${boat.capacity} | Booked: ${boat.booked} | Available: ${boat.available}`"
-                                            role="button"
-                                            tabindex="0"
-                                            @click="toggleSummaryBoatFilter(boat.name)"
+                                            role="button" tabindex="0" @click="toggleSummaryBoatFilter(boat.name)"
                                             @keydown.enter.prevent="toggleSummaryBoatFilter(boat.name)"
                                             @keydown.space.prevent="toggleSummaryBoatFilter(boat.name)">
                                             <span class="text-xl leading-none" x-text="boat.label"></span>
                                             <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                                                <span class="font-semibold text-sm sm:text-base" :style="{ color: boat.colorHex || '#1f2937' }" x-text="boat.name"></span>
-                                                <span class="flex items-center gap-1 text-xs sm:text-sm" :class="getAvailabilityIconClass(boat)">
-                                                    <i class="bx text-base sm:text-lg" :class="getAvailabilityIcon(boat)"></i>
+                                                <span class="font-semibold text-sm sm:text-base"
+                                                    :style="{ color: boat.colorHex || '#1f2937' }"
+                                                    x-text="boat.name"></span>
+                                                <span class="flex items-center gap-1 text-xs sm:text-sm"
+                                                    :class="getAvailabilityIconClass(boat)">
+                                                    <i class="bx text-base sm:text-lg"
+                                                        :class="getAvailabilityIcon(boat)"></i>
                                                     <span x-text="getAvailabilityStatusText(boat)"></span>
                                                 </span>
                                             </div>
@@ -269,7 +272,8 @@
                     <div class="bg-white rounded shadow overflow-hidden">
                         <div class="px-6 py-4 border-b space-y-3">
                             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                <h2 class="text-lg font-semibold text-gray-800" x-text="summaryGroupBy ? `Summary by ${getSummaryHeader()}` : 'Summary'"></h2>
+                                <h2 class="text-lg font-semibold text-gray-800"
+                                    x-text="summaryGroupBy ? `Summary by ${getSummaryHeader()}` : 'Summary'"></h2>
                                 <div class="flex flex-col gap-2 md:flex-row md:items-center">
                                     <span class="text-sm text-gray-600">Group by</span>
                                     <div class="flex flex-wrap gap-2">
@@ -299,17 +303,21 @@
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2 text-sm">
                                     <template x-if="summaryBoatFilter">
-                                        <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                                        <span
+                                            class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
                                             Boat: <span x-text="summaryBoatFilter"></span>
-                                            <button type="button" @click="clearSummaryBoatFilter()" class="text-blue-600 hover:text-blue-800">
+                                            <button type="button" @click="clearSummaryBoatFilter()"
+                                                class="text-blue-600 hover:text-blue-800">
                                                 <i class='bx bx-x'></i>
                                             </button>
                                         </span>
                                     </template>
                                     <template x-if="summarySearchTerm">
-                                        <span class="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                                        <span
+                                            class="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
                                             Search: <span x-text="summarySearchTerm"></span>
-                                            <button type="button" @click="summarySearchTerm = ''" class="text-gray-600 hover:text-gray-800">
+                                            <button type="button" @click="summarySearchTerm = ''"
+                                                class="text-gray-600 hover:text-gray-800">
                                                 <i class='bx bx-x'></i>
                                             </button>
                                         </span>
@@ -345,9 +353,12 @@
                                                 <td class="px-3 py-2" x-text="formatRangeDate(booking.Date)"></td>
                                                 <td class="px-3 py-2" x-text="booking.TripType"></td>
                                                 <td class="px-3 py-2" x-text="booking.Boat"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Adults) || 0"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Children) || 0"></td>
-                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.TotalPAX) || 0"></td>
+                                                <td class="px-3 py-2 text-right" x-text="parseInt(booking.Adults) || 0">
+                                                </td>
+                                                <td class="px-3 py-2 text-right"
+                                                    x-text="parseInt(booking.Children) || 0"></td>
+                                                <td class="px-3 py-2 text-right"
+                                                    x-text="parseInt(booking.TotalPAX) || 0"></td>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -460,8 +471,7 @@
                             <div class="flex-1">
                                 <label class="block mb-1 font-semibold">Select Date Range</label>
                                 <input type="text" x-ref="messageDateRange" x-init="initMessageDateRangePicker()"
-                                       placeholder="Select date range"
-                                       class="w-full border px-3 py-2 rounded">
+                                    placeholder="Select date range" class="w-full border px-3 py-2 rounded">
                             </div>
                             <div class="flex-1">
                                 <label class="block mb-1 font-semibold">Type</label>
@@ -480,13 +490,13 @@
                         <div x-show="generatedMessage" class="bg-gray-50 border rounded p-4 mb-2">
                             <pre class="whitespace-pre-wrap text-sm" x-text="generatedMessage"></pre>
                             <div class="flex gap-2 mt-2">
-                                <button @click="copyMessage"
+                                <button @click="copyMessage()"
                                     class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 flex items-center">
                                     <i class='bx bx-copy mr-1'></i> Copy
                                 </button>
-                                <button @click="printMessage"
-                                    class="bg-gray-700 text-white px-3 py-1 rounded hover:bg-gray-800 flex items-center">
-                                    <i class='bx bx-printer mr-1'></i> Print
+                                <button @click="copyMessageToWhatsApp()"
+                                    class="bg-[#25D366] text-white px-3 py-1 rounded hover:bg-[#1EBE5C] flex items-center">
+                                    <i class='bx bxl-whatsapp mr-1'></i> Copy in WhatsApp
                                 </button>
                             </div>
                         </div>
@@ -656,8 +666,8 @@
                 editingBookingId: null,
 
                 // Default range: yesterday → today (timezone-safe)
-                filterStartDate: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
-                filterEndDate: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
+                filterStartDate: (() => { const d = new Date(); d.setDate(d.getDate() - 1); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]; })(),
+                filterEndDate: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]; })(),
                 _dateRangeInstance: null,
                 _dateRangeInitRetries: 0,
 
@@ -667,10 +677,13 @@
                 summaryBoatFilter: null,
 
                 // Messages
-                messageRangeStart: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
-                messageRangeEnd: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0]; })(),
+                messageRangeStart: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]; })(),
+                messageRangeEnd: (() => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]; })(),
                 messageType: 'driver',
                 generatedMessage: '',
+                messagePhoneOptions: [],
+                messageTargetPhone: '',
+                messagePhoneDisplayMap: {},
                 _messageDateRangeInstance: null,
                 _messageDateInitRetries: 0,
 
@@ -970,6 +983,12 @@
                     return null;
                 },
 
+                normalizePhoneForWhatsApp(phone) {
+                    if (!phone && phone !== 0) return '';
+                    const digits = String(phone).replace(/[^0-9]/g, '');
+                    return digits;
+                },
+
                 safeInitTables() {
                     try {
                         // bookings table
@@ -1218,6 +1237,8 @@
 
                         const dates = this.enumerateDates(start, end);
                         const sections = [];
+                        const phoneSet = new Set();
+                        const phoneDisplayMap = {};
                         let hasData = false;
                         dates.forEach(date => {
                             const dayBookings = this.bookings.filter(b => this.normalizeBookingDate(b.Date) === date && b.Status !== 'Cancelled');
@@ -1226,12 +1247,26 @@
                                 return;
                             }
                             hasData = true;
+                            dayBookings.forEach(booking => {
+                                const rawPhone = booking.Phone || booking.phone || '';
+                                const sanitized = this.normalizePhoneForWhatsApp(rawPhone);
+                                if (sanitized) {
+                                    phoneSet.add(sanitized);
+                                    if (!phoneDisplayMap[sanitized]) {
+                                        phoneDisplayMap[sanitized] = rawPhone || sanitized;
+                                    }
+                                }
+                            });
                             if (this.messageType === 'driver') {
                                 sections.push(this.buildDriverMessage(date, dayBookings));
                             } else {
                                 sections.push(this.buildStaffMessage(date, dayBookings));
                             }
                         });
+
+                        this.messagePhoneOptions = Array.from(phoneSet);
+                        this.messagePhoneDisplayMap = phoneDisplayMap;
+                        this.messageTargetPhone = this.messagePhoneOptions[0] || '';
 
                         const combinedMessage = sections.join('\n\n').trim();
                         if (hasData) {
@@ -1249,17 +1284,52 @@
                     }
                 },
 
-                copyMessage() {
-                    navigator.clipboard.writeText(this.generatedMessage).then(() => {
-                        this.showToast('Message copied to clipboard!', 'success');
+                copyMessage(showToast = true) {
+                    if (!this.generatedMessage || !this.generatedMessage.trim()) {
+                        this.showToast('No message to copy.', 'warning');
+                        return Promise.resolve(false);
+                    }
+                    return navigator.clipboard.writeText(this.generatedMessage).then(() => {
+                        if (showToast) {
+                            this.showToast('Message copied to clipboard!', 'success');
+                        }
+                        return true;
+                    }).catch(error => {
+                        this.showToast('Failed to copy message: ' + error, 'error');
+                        return false;
                     });
                 },
 
-                printMessage() {
-                    const printWindow = window.open('', '_blank');
-                    printWindow.document.write('<pre>' + this.generatedMessage + '</pre>');
-                    printWindow.document.close();
-                    printWindow.print();
+                copyMessageToWhatsApp() {
+                    if (!this.generatedMessage || !this.generatedMessage.trim()) {
+                        this.showToast('Generate a message first.', 'warning');
+                        return;
+                    }
+                    let target = this.messageTargetPhone || (this.messagePhoneOptions.length ? this.messagePhoneOptions[0] : '');
+                    if (this.messagePhoneOptions.length > 1) {
+                        const defaultDisplay = this.messagePhoneDisplayMap[target] || target;
+                        const promptMessage = 'Multiple phone numbers found. Enter the number to use for WhatsApp:';
+                        const input = prompt(promptMessage, defaultDisplay);
+                        if (!input) {
+                            this.showToast('WhatsApp message cancelled.', 'info');
+                            return;
+                        }
+                        target = this.normalizePhoneForWhatsApp(input);
+                        if (target) {
+                            this.messagePhoneDisplayMap[target] = input;
+                        }
+                    }
+                    if (!target) {
+                        this.showToast('No phone number available for WhatsApp.', 'warning');
+                        return;
+                    }
+                    const displayNumber = this.messagePhoneDisplayMap[target] || target;
+                    const url = `https://web.whatsapp.com/send?phone=${encodeURIComponent(target)}`;
+                    this.copyMessage(false).then(success => {
+                        if (!success) return;
+                        window.open(url, '_blank', 'noopener');
+                        this.showToast(`Message copied. Opening WhatsApp for ${displayNumber}.`, 'success');
+                    });
                 },
 
                 // Computed properties
@@ -1552,7 +1622,7 @@
                                 if (!selectedDates || selectedDates.length === 0) return;
                                 const start = selectedDates[0];
                                 const end = selectedDates[1] || selectedDates[0];
-                                const toYMD = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().split('T')[0];
+                                const toYMD = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
                                 this.filterStartDate = toYMD(start);
                                 this.filterEndDate = toYMD(end);
                             },
